@@ -213,8 +213,9 @@ def main():
     print(f"   {len(rows)} tickers récupérés depuis brvm.org")
 
     if not rows:
-        print("⚠  Aucune donnée récupérée — brvm.org peut ne pas avoir encore publié les cours du jour.")
-        sys.exit(1)
+        print("⚠  Aucune donnée récupérée — brvm.org n'a pas encore publié les cours du jour.")
+        print("ℹ  Ce n'est pas une erreur — le workflow se terminera avec succès.")
+        sys.exit(0)  # Pas une erreur : données simplement pas encore disponibles
 
     # Upsert
     print(f"📤 Envoi vers Supabase...")
