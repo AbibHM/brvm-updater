@@ -27,8 +27,7 @@ HEADERS_SB = {
 BRVM_URL  = "https://www.brvm.org/fr/cours-actions/0"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
 
-TODAY = date.today().strftime("%Y-%m-%d")
-
+TODAY = "2026-05-18"  # TEMP: recuperation donnees manquantes
 TICKERS_KNOWN = {
     "ABJC","BICB","BICC","BNBC","BOAB","BOABF","BOAC","BOAM","BOAN","BOAS",
     "CABC","CBIBF","CFAC","CIEC","ECOC","ETIT","FTSC","LNBB","NEIC","NSBC",
