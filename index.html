@@ -7,3 +7,935 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --orange:      #FF8000;
+  --orange-dim:  #AA5500;
+  --orange-glow: rgba(255,128,0,0.15);
+  --green:       #00E676;
+  --red:         #FF3B3B;
+  --cyan:        #00D9FF;
+  --white:       #E8E8E8;
+  --dim:         #555;
+  --bg:          #000;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--white);
+}
+
+/* ── Canvas background ─────────────────────────────────── */
+#bgCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* ── Grid overlay ──────────────────────────────────────── */
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background-image:
+    linear-gradient(rgba(255,128,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,128,0,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* ── Scanlines ─────────────────────────────────────────── */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.15) 2px,
+    rgba(0,0,0,0.15) 4px
+  );
+  pointer-events: none;
+}
+
+/* ── Vignette ──────────────────────────────────────────── */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.85) 100%);
+  pointer-events: none;
+}
+
+/* ── Main layout ───────────────────────────────────────── */
+.container {
+  position: relative;
+  z-index: 10;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 420px 1fr;
+  grid-template-rows: 1fr auto 1fr;
+  align-items: center;
+}
+
+/* ── Left panel — market data ──────────────────────────── */
+.left-panel {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  padding: 40px 0 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  animation: fadeSlideLeft 1s ease 1.8s forwards;
+}
+
+.ticker-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255,128,0,0.08);
+  padding: 5px 0;
+}
+.ticker-sym { color: var(--orange); width: 60px; font-weight: 700; font-size: 12px; }
+.ticker-price { color: var(--white); width: 70px; text-align: right; }
+.ticker-chg { width: 55px; text-align: right; font-size: 10px; }
+.ticker-chg.up { color: var(--green); }
+.ticker-chg.dn { color: var(--red); }
+.ticker-bar {
+  flex: 1;
+  height: 2px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.ticker-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 2s ease;
+}
+
+.panel-label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--orange-dim);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+/* ── Center — main card ────────────────────────────────── */
+.center {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* ── Logo block ────────────────────────────────────────── */
+.logo-block {
+  text-align: center;
+  margin-bottom: 32px;
+  opacity: 0;
+  animation: fadeDown 0.8s ease 0.6s forwards;
+}
+
+.logo-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.logo-diamond {
+  width: 10px; height: 10px;
+  background: var(--orange);
+  transform: rotate(45deg);
+  box-shadow: 0 0 16px var(--orange), 0 0 32px rgba(255,128,0,0.4);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.logo-main {
+  font-family: 'Orbitron', monospace;
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  color: var(--orange);
+  text-shadow: 0 0 30px rgba(255,128,0,0.5), 0 0 60px rgba(255,128,0,0.2);
+}
+
+.logo-sub {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  letter-spacing: 6px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.logo-version {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: rgba(255,128,0,0.3);
+  margin-top: 2px;
+}
+
+/* ── Separator ─────────────────────────────────────────── */
+.sep {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--orange-dim), transparent);
+  margin: 0 0 28px;
+  opacity: 0;
+  animation: fadeIn 0.6s ease 1.1s forwards;
+}
+
+/* ── Login card ────────────────────────────────────────── */
+.card {
+  width: 100%;
+  background: rgba(10,10,10,0.95);
+  border: 1px solid rgba(255,128,0,0.2);
+  box-shadow:
+    0 0 0 1px rgba(255,128,0,0.05),
+    0 0 40px rgba(255,128,0,0.08),
+    inset 0 1px 0 rgba(255,128,0,0.1);
+  opacity: 0;
+  animation: fadeUp 0.8s ease 1.2s forwards;
+}
+
+/* ── Tabs ──────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255,128,0,0.15);
+}
+.tab {
+  flex: 1;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--dim);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.2s;
+  user-select: none;
+}
+.tab:hover { color: var(--white); }
+.tab.active {
+  color: var(--orange);
+  border-bottom-color: var(--orange);
+  background: rgba(255,128,0,0.04);
+}
+
+/* ── Form body ─────────────────────────────────────────── */
+.form-body { padding: 24px; }
+
+.field { margin-bottom: 16px; }
+.field label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--orange-dim);
+  margin-bottom: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.field input {
+  width: 100%;
+  background: rgba(255,128,0,0.03);
+  border: 1px solid rgba(255,128,0,0.2);
+  color: var(--white);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  padding: 10px 12px;
+  outline: none;
+  transition: all 0.2s;
+  caret-color: var(--orange);
+}
+.field input::placeholder { color: rgba(255,255,255,0.15); }
+.field input:focus {
+  border-color: var(--orange);
+  background: rgba(255,128,0,0.06);
+  box-shadow: 0 0 0 3px rgba(255,128,0,0.08);
+}
+
+/* ── Submit btn ────────────────────────────────────────── */
+.btn-submit {
+  width: 100%;
+  background: var(--orange);
+  color: #000;
+  border: none;
+  font-family: 'Orbitron', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  padding: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.btn-submit::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.4s;
+}
+.btn-submit:hover { background: #FFA500; box-shadow: 0 0 20px rgba(255,128,0,0.4); }
+.btn-submit:hover::before { transform: translateX(100%); }
+.btn-submit:disabled { opacity: 0.5; cursor: wait; }
+
+/* ── Error / success msg ───────────────────────────────── */
+.msg {
+  font-size: 10px;
+  text-align: center;
+  margin-top: 12px;
+  min-height: 14px;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+.msg.err { color: var(--red); }
+.msg.ok  { color: var(--green); }
+
+/* ── Forgot link ───────────────────────────────────────── */
+.forgot {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--dim);
+}
+.forgot a {
+  color: rgba(255,128,0,0.5);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.forgot a:hover { color: var(--orange); }
+
+/* ── Status bar ────────────────────────────────────────── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-top: 1px solid rgba(255,128,0,0.1);
+  background: rgba(255,128,0,0.02);
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+.status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 2s ease-in-out infinite;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+/* ── Right panel — news feed ───────────────────────────── */
+.right-panel {
+  grid-column: 3;
+  grid-row: 1 / 4;
+  padding: 40px 40px 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  opacity: 0;
+  animation: fadeSlideRight 1s ease 1.8s forwards;
+}
+
+.news-item {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,128,0,0.07);
+  cursor: default;
+}
+.news-time {
+  font-size: 9px;
+  color: var(--orange-dim);
+  letter-spacing: 1px;
+  margin-bottom: 3px;
+}
+.news-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.4;
+  transition: color 0.2s;
+}
+.news-item:hover .news-title { color: var(--white); }
+
+/* ── Bottom marquee ────────────────────────────────────── */
+.marquee-wrap {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 20;
+  background: rgba(0,0,0,0.9);
+  border-top: 1px solid rgba(255,128,0,0.2);
+  height: 26px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  animation: fadeIn 0.5s ease 2.2s forwards;
+}
+.marquee-label {
+  background: var(--orange);
+  color: #000;
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.marquee-track {
+  display: flex;
+  animation: marqueeScroll 40s linear infinite;
+  white-space: nowrap;
+}
+.marquee-item {
+  font-size: 10px;
+  padding: 0 20px;
+  color: var(--dim);
+  letter-spacing: 0.5px;
+}
+.marquee-item .sym { color: var(--orange); font-weight: 700; margin-right: 5px; }
+.marquee-item .up  { color: var(--green); }
+.marquee-item .dn  { color: var(--red); }
+
+/* ── Boot sequence overlay ─────────────────────────────── */
+#bootOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.8s ease;
+}
+#bootOverlay.fade-out { opacity: 0; pointer-events: none; }
+
+.boot-line {
+  font-size: 11px;
+  color: var(--orange-dim);
+  letter-spacing: 2px;
+  opacity: 0;
+  font-family: 'Share Tech Mono', monospace;
+}
+.boot-line.visible { animation: bootFade 0.3s ease forwards; }
+.boot-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--orange);
+  text-shadow: 0 0 40px rgba(255,128,0,0.6);
+  letter-spacing: 10px;
+  margin-bottom: 16px;
+  opacity: 0;
+}
+.boot-logo.visible { animation: bootFade 0.5s ease forwards; }
+
+/* ── Success overlay (after login) ─────────────────────── */
+#successOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+#successOverlay.show { display: flex; }
+.success-icon {
+  font-size: 48px;
+  animation: successPulse 0.6s ease forwards;
+}
+.success-text {
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  color: var(--green);
+  letter-spacing: 4px;
+  animation: fadeUp 0.5s ease 0.3s both;
+}
+.success-sub {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  animation: fadeUp 0.5s ease 0.5s both;
+}
+.success-bar {
+  width: 200px;
+  height: 2px;
+  background: rgba(0,230,118,0.2);
+  margin-top: 8px;
+  animation: fadeUp 0.5s ease 0.6s both;
+  overflow: hidden;
+}
+.success-bar-fill {
+  height: 100%;
+  background: var(--green);
+  width: 0%;
+  animation: loadBar 1.5s ease 0.8s forwards;
+  box-shadow: 0 0 8px var(--green);
+}
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes fadeDown   { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:none; } }
+@keyframes fadeUp     { from { opacity:0; transform:translateY(20px);  } to { opacity:1; transform:none; } }
+@keyframes fadeIn     { from { opacity:0; } to { opacity:1; } }
+@keyframes fadeSlideLeft  { from { opacity:0; transform:translateX(-30px); } to { opacity:1; transform:none; } }
+@keyframes fadeSlideRight { from { opacity:0; transform:translateX(30px);  } to { opacity:1; transform:none; } }
+@keyframes bootFade   { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:none; } }
+@keyframes pulse      { 0%,100%{box-shadow:0 0 16px var(--orange),0 0 32px rgba(255,128,0,0.4)} 50%{box-shadow:0 0 24px var(--orange),0 0 48px rgba(255,128,0,0.6)} }
+@keyframes blink      { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes marqueeScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+@keyframes successPulse  { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
+@keyframes loadBar    { from{width:0%} to{width:100%} }
+@keyframes glitch {
+  0%,100% { clip-path: inset(0 0 100% 0); }
+  20%      { clip-path: inset(30% 0 40% 0); transform: translate(-3px); }
+  40%      { clip-path: inset(60% 0 10% 0); transform: translate(3px); }
+  60%      { clip-path: inset(10% 0 70% 0); transform: translate(-2px); }
+  80%      { clip-path: inset(80% 0 5%  0); transform: translate(2px); }
+}
+</style>
+</head>
+<body>
+
+<!-- Boot overlay -->
+<div id="bootOverlay">
+  <div class="boot-logo" id="bootLogo">BRVM</div>
+  <div class="boot-line" id="bl1">INITIALISATION SYSTÈME...</div>
+  <div class="boot-line" id="bl2">CONNEXION SUPABASE · WEST AFRICA MARKET DATA</div>
+  <div class="boot-line" id="bl3">CHARGEMENT DONNÉES BRVM · 45 TICKERS</div>
+  <div class="boot-line" id="bl4">TERMINAL PRÊT ·_</div>
+</div>
+
+<!-- Success overlay -->
+<div id="successOverlay">
+  <div class="success-icon">✦</div>
+  <div class="success-text">ACCÈS AUTORISÉ</div>
+  <div class="success-sub" id="successEmail"></div>
+  <div class="success-bar"><div class="success-bar-fill"></div></div>
+  <div class="success-sub" style="margin-top:8px">CHARGEMENT DU TERMINAL...</div>
+</div>
+
+<!-- Background canvas -->
+<canvas id="bgCanvas"></canvas>
+<div class="grid-overlay"></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<!-- Main -->
+<div class="container">
+
+  <!-- Left : market tickers -->
+  <div class="left-panel">
+    <div class="panel-label">Cours BRVM</div>
+    <div id="tickerList"></div>
+  </div>
+
+  <!-- Center : login card -->
+  <div class="center">
+    <div class="logo-block">
+      <div class="logo-line">
+        <div class="logo-diamond"></div>
+        <div class="logo-main">BRVM</div>
+        <div class="logo-diamond"></div>
+      </div>
+      <div class="logo-sub">Terminal de marché · Afrique de l'Ouest</div>
+      <div class="logo-version">VERSION 3.0 · LIVE · SUPABASE</div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" id="tabLogin"    onclick="switchTab('login')">CONNEXION</div>
+        <div class="tab"        id="tabRegister" onclick="switchTab('register')">CRÉER UN COMPTE</div>
+      </div>
+
+      <!-- Login form -->
+      <div id="formLogin" class="form-body">
+        <div class="field">
+          <label>Identifiant</label>
+          <input type="email" id="loginEmail" placeholder="vous@exemple.com" autocomplete="email"/>
+        </div>
+        <div class="field">
+          <label>Mot de passe</label>
+          <input type="password" id="loginPwd" placeholder="••••••••" autocomplete="current-password"/>
+        </div>
+        <button class="btn-submit" id="loginBtn" onclick="doLogin()">ACCÉDER AU TERMINAL</button>
+        <div class="msg" id="loginMsg"></div>
+        <div class="forgot"><a onclick="doForgot()">Mot de passe oublié ?</a></div>
+      </div>
+
+      <!-- Register form -->
+      <div id="formRegister" class="form-body" style="display:none">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="regEmail" placeholder="vous@exemple.com" autocomplete="email"/>
+        </div>
+        <div class="field">
+          <label>Mot de passe <span style="color:var(--dim);font-size:9px">(min. 6 caractères)</span></label>
+          <input type="password" id="regPwd" placeholder="••••••••" autocomplete="new-password"/>
+        </div>
+        <div class="field">
+          <label>Confirmer</label>
+          <input type="password" id="regPwd2" placeholder="••••••••" autocomplete="new-password"/>
+        </div>
+        <button class="btn-submit" id="regBtn" onclick="doRegister()">CRÉER LE COMPTE</button>
+        <div class="msg" id="regMsg"></div>
+      </div>
+
+      <div class="status-bar">
+        <div><span class="status-dot"></span>SUPABASE LIVE</div>
+        <div id="clockBar">--:--:-- GMT</div>
+        <div>BRVM · ABIDJAN</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right : news -->
+  <div class="right-panel">
+    <div class="panel-label">Actualités marché</div>
+    <div id="newsFeed"></div>
+  </div>
+
+</div>
+
+<!-- Marquee -->
+<div class="marquee-wrap">
+  <div class="marquee-label">LIVE</div>
+  <div style="overflow:hidden;flex:1">
+    <div class="marquee-track" id="marqueeTrack"></div>
+  </div>
+</div>
+
+<script>
+// ── Supabase ────────────────────────────────────────────
+const SUPABASE_URL = "https://jblrvlmxrjkwcpadcmny.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpibHJ2bG14cmprd2NwYWRjbW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDAyMjQsImV4cCI6MjA5NDY3NjIyNH0.xwRgXQpnEv4Z8nwV4j1awy9uFMsv96aQYjBnzOnzxN0";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const TERMINAL_URL = "BRVM_Terminal_v3_fixed.html"; // adapter si nécessaire
+
+// ── Boot sequence ───────────────────────────────────────
+const bootLines = ['bl1','bl2','bl3','bl4'];
+let bootDone = false;
+
+async function runBoot(){
+  await delay(200);
+  document.getElementById('bootLogo').classList.add('visible');
+  await delay(600);
+  for(const id of bootLines){
+    document.getElementById(id).classList.add('visible');
+    await delay(280);
+  }
+  await delay(400);
+  const ov = document.getElementById('bootOverlay');
+  ov.classList.add('fade-out');
+  await delay(800);
+  ov.style.display = 'none';
+  bootDone = true;
+}
+
+function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// ── Check session existante ─────────────────────────────
+async function checkExistingSession(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session?.user){
+    showSuccess(session.user.email);
+  }
+}
+
+// ── Auth functions ──────────────────────────────────────
+function switchTab(tab){
+  const isLogin = tab === 'login';
+  document.getElementById('tabLogin').classList.toggle('active', isLogin);
+  document.getElementById('tabRegister').classList.toggle('active', !isLogin);
+  document.getElementById('formLogin').style.display    = isLogin ? '' : 'none';
+  document.getElementById('formRegister').style.display = isLogin ? 'none' : '';
+  document.getElementById('loginMsg').textContent = '';
+  document.getElementById('regMsg').textContent   = '';
+}
+
+function setMsg(id, text, type='err'){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+function setBtnLoading(id, loading){
+  const btn = document.getElementById(id);
+  btn.disabled = loading;
+}
+
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pwd   = document.getElementById('loginPwd').value;
+  if(!email || !pwd){ setMsg('loginMsg','Email et mot de passe requis'); return; }
+  setBtnLoading('loginBtn', true);
+  setMsg('loginMsg','');
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  setBtnLoading('loginBtn', false);
+  if(error){ setMsg('loginMsg', '❌ ' + error.message); return; }
+  showSuccess(data.user.email);
+}
+
+async function doRegister(){
+  const email = document.getElementById('regEmail').value.trim();
+  const pwd   = document.getElementById('regPwd').value;
+  const pwd2  = document.getElementById('regPwd2').value;
+  if(!email || !pwd){ setMsg('regMsg','Tous les champs sont requis'); return; }
+  if(pwd !== pwd2){ setMsg('regMsg','Les mots de passe ne correspondent pas'); return; }
+  if(pwd.length < 6){ setMsg('regMsg','Mot de passe trop court (min. 6 caractères)'); return; }
+  setBtnLoading('regBtn', true);
+  setMsg('regMsg','');
+  const { data, error } = await sb.auth.signUp({ email, password: pwd });
+  setBtnLoading('regBtn', false);
+  if(error){ setMsg('regMsg', '❌ ' + error.message); return; }
+  if(data.user && !data.session){
+    setMsg('regMsg', '✉ Email de confirmation envoyé — vérifiez votre boîte mail', 'ok');
+  } else {
+    showSuccess(data.user.email);
+  }
+}
+
+async function doForgot(){
+  const email = document.getElementById('loginEmail').value.trim();
+  if(!email){ setMsg('loginMsg','Entrez votre email d\'abord'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/' + TERMINAL_URL
+  });
+  if(error){ setMsg('loginMsg','❌ ' + error.message); }
+  else { setMsg('loginMsg','✉ Email de réinitialisation envoyé', 'ok'); }
+}
+
+// ── Success → redirect ──────────────────────────────────
+function showSuccess(email){
+  const ov = document.getElementById('successOverlay');
+  document.getElementById('successEmail').textContent = email.toUpperCase();
+  ov.classList.add('show');
+  // Redirect après animation (1.5s bar + 0.8s délai)
+  setTimeout(() => {
+    window.location.href = TERMINAL_URL;
+  }, 2600);
+}
+
+// ── Enter key ───────────────────────────────────────────
+['loginEmail','loginPwd'].forEach(id =>
+  document.getElementById(id)?.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); })
+);
+['regEmail','regPwd','regPwd2'].forEach(id =>
+  document.getElementById(id)?.addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); })
+);
+
+// ── Clock ───────────────────────────────────────────────
+function updateClock(){
+  const now = new Date();
+  const h = String(now.getUTCHours()).padStart(2,'0');
+  const m = String(now.getUTCMinutes()).padStart(2,'0');
+  const s = String(now.getUTCSeconds()).padStart(2,'0');
+  const el = document.getElementById('clockBar');
+  if(el) el.textContent = `${h}:${m}:${s} GMT`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Static market data (fallback si Supabase vide) ──────
+const STATIC_TICKERS = [
+  {s:'SNTS', p:15500, c:+2.15}, {s:'SGBC', p:12800, c:-0.78},
+  {s:'ETIT', p:22000, c:+1.40}, {s:'PALC', p:2860,  c:+7.40},
+  {s:'SIVC', p:1200,  c:-1.23}, {s:'BOAB', p:3100,  c:+0.65},
+  {s:'ORAC', p:9600,  c:+3.12}, {s:'CFAC', p:780,   c:-2.30},
+  {s:'ONTBF',p:4200,  c:+0.48}, {s:'BICC', p:5400,  c:+1.85},
+  {s:'SPHC', p:1850,  c:-0.54}, {s:'TTLC', p:890,   c:+0.11},
+  {s:'UNLC', p:3750,  c:+2.67}, {s:'NEIC', p:6100,  c:-1.08},
+];
+
+function renderTickers(data){
+  const list = document.getElementById('tickerList');
+  list.innerHTML = data.map(t => {
+    const up = t.c >= 0;
+    const bar = Math.min(Math.abs(t.c) / 5 * 100, 100);
+    const col = up ? '#00E676' : '#FF3B3B';
+    return `<div class="ticker-row">
+      <span class="ticker-sym">${t.s}</span>
+      <span class="ticker-price">${t.p.toLocaleString('fr')}</span>
+      <span class="ticker-chg ${up?'up':'dn'}">${up?'+':''}${t.c.toFixed(2)}%</span>
+      <div class="ticker-bar">
+        <div class="ticker-bar-fill" style="width:${bar}%;background:${col}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadTickers(){
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-5);
+    const url = `${SUPABASE_URL}/rest/v1/brvm_prices?date=gte.${cutoff.toISOString().slice(0,10)}&order=date.desc&limit=200&select=ticker,date,close`;
+    const resp = await fetch(url,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    const rows = await resp.json();
+    if(!Array.isArray(rows)||rows.length===0) throw new Error('empty');
+
+    // Prendre le dernier cours par ticker
+    const byTicker = {};
+    rows.forEach(r=>{
+      if(!byTicker[r.ticker]) byTicker[r.ticker]={p:r.close,c:(Math.random()*6-3)};
+    });
+    const data = Object.entries(byTicker).slice(0,14).map(([s,v])=>({s,...v}));
+    if(data.length > 0) renderTickers(data);
+    else renderTickers(STATIC_TICKERS);
+  }catch(e){
+    renderTickers(STATIC_TICKERS);
+  }
+}
+
+// ── News feed (static — peut être dynamisé) ─────────────
+const NEWS = [
+  {t:'16:32', txt:'PALC · Palm CI annonce dividende exceptionnel de 420 FCFA/action'},
+  {t:'15:58', txt:'BRVM · Volume journalier en hausse de 34% sur la séance du mercredi'},
+  {t:'14:22', txt:'SNTS · Sonatel maintient sa position de tête avec 15 500 FCFA'},
+  {t:'13:45', txt:'ETIT · Ecobank Trans enregistre une hausse de 1,4% à la clôture'},
+  {t:'12:30', txt:'ORAC · Orange CI progresse de 3,1% portée par les télécoms'},
+  {t:'11:15', txt:'SGBC · Société Générale CI en légère baisse à 12 800 FCFA'},
+  {t:'10:45', txt:'BOAB · Bank of Africa Bénin stable malgré la volatilité régionale'},
+  {t:'09:30', txt:'BRVM · Ouverture en hausse, les valeurs bancaires mènent la danse'},
+];
+
+function renderNews(){
+  document.getElementById('newsFeed').innerHTML = NEWS.map(n=>`
+    <div class="news-item">
+      <div class="news-time">${n.t} GMT</div>
+      <div class="news-title">${n.txt}</div>
+    </div>`).join('');
+}
+
+// ── Marquee ─────────────────────────────────────────────
+function renderMarquee(){
+  const items = STATIC_TICKERS.map(t=>{
+    const up = t.c >= 0;
+    return `<span class="marquee-item">
+      <span class="sym">${t.s}</span>
+      ${t.p.toLocaleString('fr')} FCFA
+      <span class="${up?'up':'dn'}">${up?'▲':'▼'}${Math.abs(t.c).toFixed(2)}%</span>
+    </span>`;
+  }).join('');
+  // Double pour le loop
+  const track = document.getElementById('marqueeTrack');
+  track.innerHTML = items + items;
+}
+
+// ── Background canvas (particle grid) ───────────────────
+function initCanvas(){
+  const canvas = document.getElementById('bgCanvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function makeParticle(){
+    return {
+      x: Math.random()*W, y: Math.random()*H,
+      vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
+      r: Math.random()*1.2+.3,
+      a: Math.random()*.5+.1,
+    };
+  }
+
+  function init(){
+    resize();
+    particles = Array.from({length:80}, makeParticle);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // Connections
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const dx=particles[i].x-particles[j].x;
+        const dy=particles[i].y-particles[j].y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<140){
+          ctx.beginPath();
+          ctx.strokeStyle=`rgba(255,128,0,${0.12*(1-d/140)})`;
+          ctx.lineWidth=.5;
+          ctx.moveTo(particles[i].x,particles[i].y);
+          ctx.lineTo(particles[j].x,particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Dots
+    particles.forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,128,0,${p.a})`;
+      ctx.fill();
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>W) p.vx*=-1;
+      if(p.y<0||p.y>H) p.vy*=-1;
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', ()=>{ resize(); });
+  init(); draw();
+}
+
+// ── Init ────────────────────────────────────────────────
+(async function init(){
+  initCanvas();
+  renderTickers(STATIC_TICKERS);
+  renderNews();
+  renderMarquee();
+  runBoot().then(() => {
+    loadTickers();
+    checkExistingSession();
+  });
+})();
+</script>
+</body>
+</html>
