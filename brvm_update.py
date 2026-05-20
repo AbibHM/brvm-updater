@@ -15,7 +15,7 @@ from datetime import datetime, date, timezone
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jblrvlmxrjkwcpadcmny.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_kv6SyXEAcc4vi3wgKjofmQ_kaZ-pb0f")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpibHJ2bG14cmprd2NwYWRjbW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDAyMjQsImV4cCI6MjA5NDY3NjIyNH0.xwRgXQpnEv4Z8nwV4j1awy9uFMsv96aQYjBnzOnzxN0")
 
 HEADERS_SB = {
     "apikey": SUPABASE_KEY,
@@ -28,7 +28,8 @@ BRVM_URL  = "https://www.brvm.org/fr/cours-actions/0"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
 
 TODAY = date.today().strftime("%Y-%m-%d")
-    
+
+TICKERS_KNOWN = {
     "ABJC","BICB","BICC","BNBC","BOAB","BOABF","BOAC","BOAM","BOAN","BOAS",
     "CABC","CBIBF","CFAC","CIEC","ECOC","ETIT","FTSC","LNBB","NEIC","NSBC",
     "NTLC","ONTBF","ORAC","ORGT","PALC","PRSC","SAFC","SCRC","SDCC","SDSC",
