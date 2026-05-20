@@ -1,50 +1,70 @@
-name: BRVM Daily Update
+#!/usr/bin/env python3
+"""
+BRVM Daily Updater — version corrigée
+Scrape brvm.org → Supabase (table brvm_prices + brvm_meta)
 
-on:
-  # 16h30 GMT = fin séance BRVM (Abidjan = UTC+0, séance 09h-15h30)
-  # brvm.org publie les cours ~30-60 min après la clôture
-  schedule:
-    - cron: "30 16 * * 1-5"
+Corrections vs version précédente :
+- Utilise SUPABASE_KEY depuis les secrets GitHub (service_role obligatoire avec RLS)
+- Plus de clé hardcodée dans le code
+- DATE_OVERRIDE correctement lu depuis l'env du workflow
+- brvm_meta : une seule ligne globale (pas par ticker)
+- Cron aligné sur 16h30 GMT (fin séance BRVM)
+"""
 
-  # Déclenchement manuel avec option de forcer une date passée
-  workflow_dispatch:
-    inputs:
-      date_override:
-        description: "Date à forcer (YYYY-MM-DD) — laisser vide pour aujourd'hui"
-        required: false
-        default: ""
+import os
+import re
+import sys
+import requests
+import urllib3
+from datetime import datetime, date, timezone
 
-jobs:
-  update:
-    name: Scrape BRVM → Supabase
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+# ─── Configuration ────────────────────────────────────────────────────────────
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")  # doit être la clé service_role
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("❌ SUPABASE_URL et SUPABASE_KEY doivent être définis (secrets GitHub)")
+    sys.exit(1)
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+HEADERS_SB = {
+    "apikey":        SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type":  "application/json",
+    "Prefer":        "resolution=merge-duplicates",
+}
 
-      - name: Run BRVM updater
-        env:
-          SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}   # ← doit être service_role dans les secrets
-          DATE_OVERRIDE: ${{ github.event.inputs.date_override }}
-        run: python brvm_update.py
+BRVM_URL   = "https://www.brvm.org/fr/cours-actions/0"
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "❌ BRVM update failed on $(date -u)"
-          echo "Vérifier les logs ci-dessus."
-          echo "Si brvm.org est indisponible, relancer manuellement demain."
+_date_override = os.environ.get("DATE_OVERRIDE", "").strip()
+try:
+    TODAY = datetime.strptime(_date_override, "%Y-%m-%d").date().isoformat() if _date_override else date.today().isoformat()
+except ValueError:
+    TODAY = date.today().isoformat()
+
+TICKERS_KNOWN = {
+    "ABJC","BICB","BICC","BNBC","BOAB","BOABF","BOAC","BOAM","BOAN","BOAS",
+    "CABC","CBIBF","CFAC","CIEC","ECOC","ETIT","FTSC","LNBB","NEIC","NSBC",
+    "NTLC","ONTBF","ORAC","ORGT","PALC","PRSC","SAFC","SCRC","SDCC","SDSC",
+    "SEMC","SGBC","SHEC","SIBC","SICC","SIVC","SLBC","SMBC","SNTS","SOGC",
+    "SPHC","STAC","STBC","SVOC","TTLC","TTLS","UNLC","UNXC",
+}
+
+def clean(s):
+    return re.sub(r"[\u00a0\u202f\s]+", "", s.strip())
+
+def to_float(s):
+    try: return float(clean(s).replace(",", "."))
+    except: return None
+
+def to_int(s):
+    try: return int(float(clean(s).replace(",", ".")))
+    except: return None
+
+def today_already_in_supabase():
+    url = f"{SUPABASE_URL}/rest/v1/brvm_prices?date=eq.{TODAY}&limit=1&select=ticker"
+    try:
+        resp = requests.get(url, headers=HEADERS_SB, timeout=15)
+        da
