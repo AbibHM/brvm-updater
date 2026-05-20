@@ -67,4 +67,105 @@ def today_already_in_supabase():
     url = f"{SUPABASE_URL}/rest/v1/brvm_prices?date=eq.{TODAY}&limit=1&select=ticker"
     try:
         resp = requests.get(url, headers=HEADERS_SB, timeout=15)
-        da
+        data = resp.json()
+        return isinstance(data, list) and len(data) > 0
+    except Exception as e:
+        print(f"⚠ Erreur vérification doublon : {e}")
+        return False
+
+def scrape_brvm():
+    headers = {"User-Agent": USER_AGENT, "Accept-Language": "fr-FR,fr;q=0.9"}
+    try:
+        resp = requests.get(BRVM_URL, headers=headers, timeout=30, verify=False)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"❌ Erreur fetch brvm.org : {e}")
+        return []
+
+    rows = []
+    tr_pattern  = re.compile(r"<tr[^>]*>(.*?)</tr>", re.DOTALL|re.IGNORECASE)
+    td_pattern  = re.compile(r"<td[^>]*>(.*?)</td>", re.DOTALL|re.IGNORECASE)
+    tag_pattern = re.compile(r"<[^>]+>")
+
+    for tr_match in tr_pattern.finditer(resp.text):
+        tr = tr_match.group(1)
+        ticker_m = re.search(r"/fr/cours/([A-Z]{3,6})", tr, re.IGNORECASE)
+        if not ticker_m: continue
+        ticker = ticker_m.group(1).upper()
+        if ticker not in TICKERS_KNOWN: continue
+
+        tds = [clean(tag_pattern.sub("", td.group(1))) for td in td_pattern.finditer(tr)]
+        tds = [t for t in tds if t]
+        if len(tds) < 2: continue
+
+        numerics = [v for t in tds if (v := to_float(t)) is not None and v > 0]
+        if not numerics: continue
+
+        close = numerics[0]
+        open_ = numerics[2] if len(numerics) > 2 else close
+        high  = numerics[3] if len(numerics) > 3 else close
+        low   = numerics[4] if len(numerics) > 4 else close
+
+        volume = 0
+        for t in reversed(tds):
+            v = to_int(t)
+            if v is not None and v >= 0:
+                volume = v; break
+
+        rows.append({"ticker":ticker,"date":TODAY,"open":open_,"high":high,"low":low,"close":close,"volume":volume})
+
+    return rows
+
+def upsert_prices(rows):
+    if not rows: return 0
+    url = f"{SUPABASE_URL}/rest/v1/brvm_prices"
+    inserted = 0
+    for i in range(0, len(rows), 50):
+        batch = rows[i:i+50]
+        resp = requests.post(url, headers=HEADERS_SB, json=batch, timeout=30)
+        if resp.status_code in (200, 201):
+            inserted += len(batch)
+        else:
+            print(f"⚠ Supabase error {resp.status_code}: {resp.text[:300]}")
+    return inserted
+
+def update_meta(tickers_count, source="brvm.org"):
+    url = f"{SUPABASE_URL}/rest/v1/brvm_meta"
+    payload = {
+        "last_updated":  datetime.now(timezone.utc).isoformat(),
+        "source":        source,
+        "tickers_count": tickers_count,
+        "notes":         f"Séance du {TODAY}",
+    }
+    resp = requests.post(url, headers=HEADERS_SB, json=payload, timeout=15)
+    if resp.status_code in (200, 201):
+        print(f"✅ brvm_meta mis à jour — {tickers_count} tickers")
+    else:
+        print(f"⚠ brvm_meta erreur {resp.status_code}: {resp.text[:200]}")
+
+def main():
+    print(f"🕐 BRVM Daily Updater — {TODAY}")
+    print("=" * 50)
+
+    if today_already_in_supabase():
+        print(f"ℹ Données du {TODAY} déjà dans Supabase — rien à faire.")
+        sys.exit(0)
+
+    print("📡 Scraping brvm.org...")
+    rows = scrape_brvm()
+    print(f"   {len(rows)} tickers récupérés")
+
+    if not rows:
+        print("⚠ Aucune donnée — cours pas encore publiés.")
+        sys.exit(0)
+
+    print("📤 Envoi vers Supabase...")
+    inserted = upsert_prices(rows)
+    print(f"✅ {inserted}/{len(rows)} lignes upsertées")
+
+    update_meta(tickers_count=inserted)
+    print(f"🏁 Terminé : {datetime.now().strftime('%H:%M:%S UTC')}")
+    sys.exit(0 if inserted > 0 else 1)
+
+if __name__ == "__main__":
+    main()
