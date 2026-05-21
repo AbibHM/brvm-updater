@@ -1,11 +1,12 @@
 name: BRVM Daily Update
 
 on:
-  # Déclenchement automatique : 19h30 Abidjan (= UTC+0) → lun-ven
+  # Passage 1 : 18h30 UTC = 18h30 Abidjan – PDF généralement publié à cette heure
+  # Passage 2 : 23h30 UTC = 23h30 Abidjan – Filet de sécurité si PDF publié tard
   schedule:
-    - cron: "30 19 * * 1-5"
+    - cron: "30 18 * * 1-5"   # lun-ven 18h30 UTC
+    - cron: "30 23 * * 1-5"   # lun-ven 23h30 UTC
 
-  # Déclenchement MANUEL depuis l'interface GitHub (bouton "Run workflow")
   workflow_dispatch:
     inputs:
       date_override:
@@ -37,6 +38,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DATE_OVERRIDE: ${{ github.event.inputs.date_override }}
         run: python brvm_update.py
 
       - name: Notify on failure
