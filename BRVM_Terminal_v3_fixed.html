@@ -5584,7 +5584,7 @@ async function _authForgotPassword(){
 
 /* ── Logout ───────────────────────────────────────────────── */
 async function _authLogout(){
-  await _sbClient.auth.signOut();
+  try{ await _sbClient.auth.signOut(); }catch(e){ console.warn('[BRVM] signOut:',e); }
   _authUpdateUI(null);
   // Vider le portfolio en mémoire (pas le localStorage — reste en cache local)
   PORTFOLIO_MOCK = [];
