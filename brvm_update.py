@@ -41,7 +41,7 @@ if _date_override:
 else:
     TODAY = date.today().isoformat()
 
-TODAY_COMPACT = TODAY.replace("-", "")  # YYYYMMDD pour les URLs PDF
+TODAY_COMPACT = TODAY.replace("-", "")
 
 TICKERS_KNOWN = {
     "ABJC","BICB","BICC","BNBC","BOAB","BOABF","BOAC","BOAM","BOAN","BOAS",
@@ -108,7 +108,6 @@ def update_meta(tickers_count, source="BOC PDF"):
         "last_updated": datetime.now(timezone.utc).isoformat(),
         "source": source,
         "tickers_count": tickers_count,
-        "notes": "Seance du " + TODAY,
     }
     resp = requests.post(url, headers=HEADERS_SB, json=payload, timeout=15)
     if resp.status_code in (200, 201):
@@ -174,25 +173,6 @@ def parse_pdf_boc(pdf_bytes):
                             if v is not None and v >= 0: volume = v; break
                         seen_tickers.add(ticker)
                         rows.append({"ticker": ticker, "date": TODAY, "open": open_, "high": high, "low": low, "close": close, "volume": volume})
-                if not rows:
-                    text = page.extract_text() or ""
-                    for line in text.splitlines():
-                        m = re.match(r"^([A-Z]{3,6})\s+(.+)$", line.strip())
-                        if not m: continue
-                        ticker = m.group(1)
-                        if ticker not in TICKERS_KNOWN or ticker in seen_tickers: continue
-                        nums = re.findall(r"[\d\s]+[,.][\d]+|[\d]{3,}", m.group(2))
-                        numerics = [to_float(n) for n in nums if to_float(n) and to_float(n) > 0]
-                        if not numerics: continue
-                        close = numerics[0]
-                        open_ = numerics[1] if len(numerics) > 1 else close
-                        high  = numerics[2] if len(numerics) > 2 else close
-                        low   = numerics[3] if len(numerics) > 3 else close
-                        volume = 0
-                        for v in reversed([to_int(n) for n in nums]):
-                            if v is not None and v >= 0: volume = v; break
-                        seen_tickers.add(ticker)
-                        rows.append({"ticker": ticker, "date": TODAY, "open": open_, "high": high, "low": low, "close": close, "volume": volume})
     except Exception as e:
         print(f"  Erreur parsing PDF: {e}")
         return []
@@ -203,7 +183,7 @@ def scrape_from_pdf():
         print(f"  Tentative PDF : {url}")
         pdf_bytes = fetch_pdf_bytes(url)
         if pdf_bytes:
-            print(f"  PDF telecharge ({len(pdf_bytes)//1024} KB) - parsing...")
+            print(f"  PDF telecharge {len(pdf_bytes)//1024} KB) - parsing...")
             rows = parse_pdf_boc(pdf_bytes)
             if rows:
                 print(f"  {len(rows)} tickers extraits du PDF")
