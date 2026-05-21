@@ -105,7 +105,7 @@ def update_meta(tickers_count, source="BOC PDF"):
         print("brvm_meta erreur " + str(resp.status_code) + ": " + resp.text[:200])
 
 def get_pdf_urls():
-    d = TODAY_COMPABT
+    d = TODAY_COMPACT
     return [
         f"https://www.brvm.org/sites/default/files/boc_{d}_2.pdf",
         f"https://www.brvm.org/sites/default/files/boc_{d}_1.pdf",
