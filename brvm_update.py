@@ -4,7 +4,7 @@ BRVM Daily Updater
 Source : Bulletin Officiel de la Cote (BOC) PDF - brvm.org
 Fallback: scraping HTML brvm.org/fr/cours-actions/0
 """
-import os
+import osh
 import re
 import sys
 import io
