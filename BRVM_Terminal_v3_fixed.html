@@ -995,16 +995,16 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
         <span class="ic">📦</span><span>Tout exporter en CSV</span><span class="desc">4 fichiers séparés</span>
       </div>
     </div>
+    <!-- Auth button -->
+    <div id="authUserBadge" style="display:none" title="Connecté">
+      <div class="dot"></div>
+      <span id="authUserEmail" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button class="tb-btn" style="padding:2px 8px;font-size:10px" onclick="_authLogout()" title="Se déconnecter">⏏ LOGOUT</button>
+    </div>
+    <button class="tb-btn" id="authLoginBtn" onclick="showAuthModal()" style="border-color:var(--cyan);color:var(--cyan)" title="Se connecter">
+      <span class="ic">🔐</span> LOGIN
+    </button>
   </div>
-  <!-- Auth button -->
-  <div id="authUserBadge" style="display:none" title="Connecté">
-    <div class="dot"></div>
-    <span id="authUserEmail" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-    <button class="tb-btn" style="padding:2px 8px;font-size:10px" onclick="_authLogout()" title="Se déconnecter">⏏ LOGOUT</button>
-  </div>
-  <button class="tb-btn" id="authLoginBtn" onclick="showAuthModal()" style="border-color:var(--cyan);color:var(--cyan)" title="Se connecter">
-    <span class="ic">🔐</span> LOGIN
-  </button>
   <div class="topbar-right">
     <div class="market-status" id="mstatus"><span class="pulse"></span> <span id="mstatusLabel">MARCHÉ OUVERT</span></div>
     <div class="clock" id="clock">--:--:--</div>
@@ -5552,7 +5552,7 @@ async function _authRegister(){
 /* ── Forgot password ─────────────────────────────────────── */
 async function _authForgotPassword(){
   const email = document.getElementById('authEmail').value.trim();
-  if(!email){ _authSetErr('Entrez votre email d'abord'); return; }
+  if(!email){ _authSetErr("Entrez votre email d'abord"); return; }
   const { error } = await _sbClient.auth.resetPasswordForEmail(email);
   if(error){ _authSetErr('❌ ' + error.message); }
   else{ _authSetErr(''); toast('✉ Email de réinitialisation envoyé à ' + email); }
