@@ -76,6 +76,18 @@ def today_already_in_supabase():
         print("Erreur verification doublon: " + str(e))
         return False
 
+def delete_date_prices(date_str):
+    """Supprime toutes les lignes pour une date donnee avant re-insert."""
+    url = SUPABASE_URL + "/rest/v1/brvm_prices?date=eq." + date_str
+    try:
+        resp = requests.delete(url, headers=HEADERS_SB, timeout=15)
+        if resp.status_code in (200, 204):
+            print("Suppression " + date_str + " OK")
+        else:
+            print("Suppression echouee " + str(resp.status_code) + ": " + resp.text[:100])
+    except Exception as e:
+        print("Erreur suppression: " + str(e))
+
 def upsert_prices(rows):
     if not rows:
         return 0
@@ -235,15 +247,14 @@ def scrape_from_html():
 def main():
     print("BRVM Daily Updater - " + TODAY)
     print("=" * 50)
-    if today_already_in_supabase():
-        print("Donnees du " + TODAY + " deja dans Supabase - rien a faire.")
-        sys.exit(0)
-    print("\n[1/2] Recherche du Bulletin Officiel de la Cote (PDF)...")
-    rows, pdf_source = scrape_from_pdf()
+    # Supprimer les données existantes du jour (peut être corrompues)
+    delete_date_prices(TODAY)
+    print("\n[1/2] Scraping HTML brvm.org (source principale)...")
+    rows = scrape_from_html()
+    pdf_source = None
     if not rows:
-        print("\n[2/2] Fallback: scraping HTML brvm.org...")
-        rows = scrape_from_html()
-        pdf_source = None
+        print("\n[2/2] Fallback: Bulletin Officiel de la Cote (PDF)...")
+        rows, pdf_source = scrape_from_pdf()
     print(f"\n{len(rows)} tickers recuperes")
     if not rows:
         print("Aucune donnee disponible. Repassage au prochain cron.")
