@@ -1004,7 +1004,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
     <div id="authUserBadge" style="display:none;align-items:center;gap:4px;flex-shrink:0" title="Connecté">
       <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);flex-shrink:0"></div>
       <span id="authUserEmail" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--dim)"></span>
-      <button class="tb-btn" style="padding:1px 6px;font-size:10px;border-color:#ff4444;color:#ff4444" onclick="_authLogout()" title="Déconnexion">LOGOUT</button>
+      <button class="tb-btn" style="padding:1px 6px;font-size:10px;border-color:#ff4444;color:#ff4444" onclick="window.location.href='index.html'" title="Déconnexion">LOGOUT</button>
     </div>
     <button class="tb-btn" id="authLoginBtn" onclick="showAuthModal()" style="border-color:var(--cyan);color:var(--cyan);font-size:10px;padding:2px 8px;white-space:nowrap;flex-shrink:0" title="Se connecter">
       🔐 LOGIN
@@ -5584,7 +5584,7 @@ async function _authForgotPassword(){
 
 /* ── Logout ───────────────────────────────────────────────── */
 async function _authLogout(){
-  try{ await _sbClient.auth.signOut(); }catch(e){ console.warn('[BRVM] signOut:',e); }
+  await _sbClient.auth.signOut();
   _authUpdateUI(null);
   // Vider le portfolio en mémoire (pas le localStorage — reste en cache local)
   PORTFOLIO_MOCK = [];
