@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BRVM TERMINAL — Accès</title>
+<title>BRVM TERMINAL â AccÃ¨s</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -30,7 +30,7 @@ html, body {
   color: var(--white);
 }
 
-/* ── Canvas background ─────────────────────────────────── */
+/* ââ Canvas background âââââââââââââââââââââââââââââââââââ */
 #bgCanvas {
   position: fixed;
   inset: 0;
@@ -38,7 +38,7 @@ html, body {
   opacity: 0.6;
 }
 
-/* ── Grid overlay ──────────────────────────────────────── */
+/* ââ Grid overlay ââââââââââââââââââââââââââââââââââââââââ */
 .grid-overlay {
   position: fixed;
   inset: 0;
@@ -50,7 +50,7 @@ html, body {
   pointer-events: none;
 }
 
-/* ── Scanlines ─────────────────────────────────────────── */
+/* ââ Scanlines âââââââââââââââââââââââââââââââââââââââââââ */
 .scanlines {
   position: fixed;
   inset: 0;
@@ -65,7 +65,7 @@ html, body {
   pointer-events: none;
 }
 
-/* ── Vignette ──────────────────────────────────────────── */
+/* ââ Vignette ââââââââââââââââââââââââââââââââââââââââââââ */
 .vignette {
   position: fixed;
   inset: 0;
@@ -74,7 +74,7 @@ html, body {
   pointer-events: none;
 }
 
-/* ── Main layout ───────────────────────────────────────── */
+/* ââ Main layout âââââââââââââââââââââââââââââââââââââââââ */
 .container {
   position: relative;
   z-index: 10;
@@ -85,7 +85,7 @@ html, body {
   align-items: center;
 }
 
-/* ── Left panel — market data ──────────────────────────── */
+/* ââ Left panel â market data ââââââââââââââââââââââââââââ */
 .left-panel {
   grid-column: 1;
   grid-row: 1 / 4;
@@ -133,7 +133,7 @@ html, body {
   text-transform: uppercase;
 }
 
-/* ── Center — main card ────────────────────────────────── */
+/* ââ Center â main card ââââââââââââââââââââââââââââââââââ */
 .center {
   grid-column: 2;
   grid-row: 1 / 4;
@@ -144,7 +144,7 @@ html, body {
   padding: 20px;
 }
 
-/* ── Logo block ────────────────────────────────────────── */
+/* ââ Logo block ââââââââââââââââââââââââââââââââââââââââââ */
 .logo-block {
   text-align: center;
   margin-bottom: 32px;
@@ -193,7 +193,7 @@ html, body {
   margin-top: 2px;
 }
 
-/* ── Separator ─────────────────────────────────────────── */
+/* ââ Separator âââââââââââââââââââââââââââââââââââââââââââ */
 .sep {
   width: 100%;
   height: 1px;
@@ -203,7 +203,7 @@ html, body {
   animation: fadeIn 0.6s ease 1.1s forwards;
 }
 
-/* ── Login card ────────────────────────────────────────── */
+/* ââ Login card ââââââââââââââââââââââââââââââââââââââââââ */
 .card {
   width: 100%;
   background: rgba(10,10,10,0.95);
@@ -216,7 +216,7 @@ html, body {
   animation: fadeUp 0.8s ease 1.2s forwards;
 }
 
-/* ── Tabs ──────────────────────────────────────────────── */
+/* ââ Tabs ââââââââââââââââââââââââââââââââââââââââââââââââ */
 .tabs {
   display: flex;
   border-bottom: 1px solid rgba(255,128,0,0.15);
@@ -243,7 +243,7 @@ html, body {
   background: rgba(255,128,0,0.04);
 }
 
-/* ── Form body ─────────────────────────────────────────── */
+/* ââ Form body âââââââââââââââââââââââââââââââââââââââââââ */
 .form-body { padding: 24px; }
 
 .field { margin-bottom: 16px; }
@@ -277,7 +277,7 @@ html, body {
   box-shadow: 0 0 0 3px rgba(255,128,0,0.08);
 }
 
-/* ── Submit btn ────────────────────────────────────────── */
+/* ââ Submit btn ââââââââââââââââââââââââââââââââââââââââââ */
 .btn-submit {
   width: 100%;
   background: var(--orange);
@@ -306,7 +306,7 @@ html, body {
 .btn-submit:hover::before { transform: translateX(100%); }
 .btn-submit:disabled { opacity: 0.5; cursor: wait; }
 
-/* ── Error / success msg ───────────────────────────────── */
+/* ââ Error / success msg âââââââââââââââââââââââââââââââââ */
 .msg {
   font-size: 10px;
   text-align: center;
@@ -318,7 +318,7 @@ html, body {
 .msg.err { color: var(--red); }
 .msg.ok  { color: var(--green); }
 
-/* ── Forgot link ───────────────────────────────────────── */
+/* ââ Forgot link âââââââââââââââââââââââââââââââââââââââââ */
 .forgot {
   text-align: center;
   margin-top: 10px;
@@ -333,7 +333,7 @@ html, body {
 }
 .forgot a:hover { color: var(--orange); }
 
-/* ── Status bar ────────────────────────────────────────── */
+/* ââ Status bar ââââââââââââââââââââââââââââââââââââââââââ */
 .status-bar {
   display: flex;
   align-items: center;
@@ -355,7 +355,7 @@ html, body {
   margin-right: 5px;
 }
 
-/* ── Right panel — news feed ───────────────────────────── */
+/* ââ Right panel â news feed âââââââââââââââââââââââââââââ */
 .right-panel {
   grid-column: 3;
   grid-row: 1 / 4;
@@ -388,7 +388,7 @@ html, body {
 }
 .news-item:hover .news-title { color: var(--white); }
 
-/* ── Bottom marquee ────────────────────────────────────── */
+/* ââ Bottom marquee ââââââââââââââââââââââââââââââââââââââ */
 .marquee-wrap {
   position: fixed;
   bottom: 0; left: 0; right: 0;
@@ -431,7 +431,7 @@ html, body {
 .marquee-item .up  { color: var(--green); }
 .marquee-item .dn  { color: var(--red); }
 
-/* ── Boot sequence overlay ─────────────────────────────── */
+/* ââ Boot sequence overlay âââââââââââââââââââââââââââââââ */
 #bootOverlay {
   position: fixed;
   inset: 0;
@@ -466,7 +466,7 @@ html, body {
 }
 .boot-logo.visible { animation: bootFade 0.5s ease forwards; }
 
-/* ── Success overlay (after login) ─────────────────────── */
+/* ââ Success overlay (after login) âââââââââââââââââââââââ */
 #successOverlay {
   position: fixed;
   inset: 0;
@@ -512,7 +512,7 @@ html, body {
   box-shadow: 0 0 8px var(--green);
 }
 
-/* ── Animations ────────────────────────────────────────── */
+/* ââ Animations ââââââââââââââââââââââââââââââââââââââââââ */
 @keyframes fadeDown   { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:none; } }
 @keyframes fadeUp     { from { opacity:0; transform:translateY(20px);  } to { opacity:1; transform:none; } }
 @keyframes fadeIn     { from { opacity:0; } to { opacity:1; } }
@@ -538,16 +538,16 @@ html, body {
 <!-- Boot overlay -->
 <div id="bootOverlay">
   <div class="boot-logo" id="bootLogo">BRVM</div>
-  <div class="boot-line" id="bl1">INITIALISATION SYSTÈME...</div>
-  <div class="boot-line" id="bl2">CONNEXION SUPABASE · WEST AFRICA MARKET DATA</div>
-  <div class="boot-line" id="bl3">CHARGEMENT DONNÉES BRVM · 45 TICKERS</div>
-  <div class="boot-line" id="bl4">TERMINAL PRÊT ·_</div>
+  <div class="boot-line" id="bl1">INITIALISATION SYSTÃME...</div>
+  <div class="boot-line" id="bl2">CONNEXION SUPABASE Â· WEST AFRICA MARKET DATA</div>
+  <div class="boot-line" id="bl3">CHARGEMENT DONNÃES BRVM Â· 45 TICKERS</div>
+  <div class="boot-line" id="bl4">TERMINAL PRÃT Â·_</div>
 </div>
 
 <!-- Success overlay -->
 <div id="successOverlay">
-  <div class="success-icon">✦</div>
-  <div class="success-text">ACCÈS AUTORISÉ</div>
+  <div class="success-icon">â¦</div>
+  <div class="success-text">ACCÃS AUTORISÃ</div>
   <div class="success-sub" id="successEmail"></div>
   <div class="success-bar"><div class="success-bar-fill"></div></div>
   <div class="success-sub" style="margin-top:8px">CHARGEMENT DU TERMINAL...</div>
@@ -576,8 +576,8 @@ html, body {
         <div class="logo-main">BRVM</div>
         <div class="logo-diamond"></div>
       </div>
-      <div class="logo-sub">Terminal de marché · Afrique de l'Ouest</div>
-      <div class="logo-version">VERSION 3.0 · LIVE · SUPABASE</div>
+      <div class="logo-sub">Terminal de marchÃ© Â· Afrique de l'Ouest</div>
+      <div class="logo-version">VERSION 3.0 Â· LIVE Â· SUPABASE</div>
     </div>
 
     <div class="sep"></div>
@@ -585,7 +585,7 @@ html, body {
     <div class="card">
       <div class="tabs">
         <div class="tab active" id="tabLogin"    onclick="switchTab('login')">CONNEXION</div>
-        <div class="tab"        id="tabRegister" onclick="switchTab('register')">CRÉER UN COMPTE</div>
+        <div class="tab"        id="tabRegister" onclick="switchTab('register')">CRÃER UN COMPTE</div>
       </div>
 
       <!-- Login form -->
@@ -596,11 +596,11 @@ html, body {
         </div>
         <div class="field">
           <label>Mot de passe</label>
-          <input type="password" id="loginPwd" placeholder="••••••••" autocomplete="current-password"/>
+          <input type="password" id="loginPwd" placeholder="â¢â¢â¢â¢â¢â¢â¢â¢" autocomplete="current-password"/>
         </div>
-        <button class="btn-submit" id="loginBtn" onclick="doLogin()">ACCÉDER AU TERMINAL</button>
+        <button class="btn-submit" id="loginBtn" onclick="doLogin()">ACCÃDER AU TERMINAL</button>
         <div class="msg" id="loginMsg"></div>
-        <div class="forgot"><a onclick="doForgot()">Mot de passe oublié ?</a></div>
+        <div class="forgot"><a onclick="doForgot()">Mot de passe oubliÃ© ?</a></div>
       </div>
 
       <!-- Register form -->
@@ -610,28 +610,28 @@ html, body {
           <input type="email" id="regEmail" placeholder="vous@exemple.com" autocomplete="email"/>
         </div>
         <div class="field">
-          <label>Mot de passe <span style="color:var(--dim);font-size:9px">(min. 6 caractères)</span></label>
-          <input type="password" id="regPwd" placeholder="••••••••" autocomplete="new-password"/>
+          <label>Mot de passe <span style="color:var(--dim);font-size:9px">(min. 6 caractÃ¨res)</span></label>
+          <input type="password" id="regPwd" placeholder="â¢â¢â¢â¢â¢â¢â¢â¢" autocomplete="new-password"/>
         </div>
         <div class="field">
           <label>Confirmer</label>
-          <input type="password" id="regPwd2" placeholder="••••••••" autocomplete="new-password"/>
+          <input type="password" id="regPwd2" placeholder="â¢â¢â¢â¢â¢â¢â¢â¢" autocomplete="new-password"/>
         </div>
-        <button class="btn-submit" id="regBtn" onclick="doRegister()">CRÉER LE COMPTE</button>
+        <button class="btn-submit" id="regBtn" onclick="doRegister()">CRÃER LE COMPTE</button>
         <div class="msg" id="regMsg"></div>
       </div>
 
       <div class="status-bar">
         <div><span class="status-dot"></span>SUPABASE LIVE</div>
         <div id="clockBar">--:--:-- GMT</div>
-        <div>BRVM · ABIDJAN</div>
+        <div>BRVM Â· ABIDJAN</div>
       </div>
     </div>
   </div>
 
   <!-- Right : news -->
   <div class="right-panel">
-    <div class="panel-label">Actualités marché</div>
+    <div class="panel-label">ActualitÃ©s marchÃ©</div>
     <div id="newsFeed"></div>
   </div>
 
@@ -646,14 +646,14 @@ html, body {
 </div>
 
 <script>
-// ── Supabase ────────────────────────────────────────────
+// ââ Supabase ââââââââââââââââââââââââââââââââââââââââââââ
 const SUPABASE_URL = "https://jblrvlmxrjkwcpadcmny.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpibHJ2bG14cmprd2NwYWRjbW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDAyMjQsImV4cCI6MjA5NDY3NjIyNH0.xwRgXQpnEv4Z8nwV4j1awy9uFMsv96aQYjBnzOnzxN0";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const TERMINAL_URL = "BRVM_Terminal_v3_fixed.html"; // adapter si nécessaire
+const TERMINAL_URL = "BRVM_Terminal_v3_fixed.html"; // adapter si nÃ©cessaire
 
-// ── Boot sequence ───────────────────────────────────────
+// ââ Boot sequence âââââââââââââââââââââââââââââââââââââââ
 const bootLines = ['bl1','bl2','bl3','bl4'];
 let bootDone = false;
 
@@ -675,15 +675,17 @@ async function runBoot(){
 
 function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-// ── Check session existante ─────────────────────────────
+// ââ Check session existante âââââââââââââââââââââââââââââ
 async function checkExistingSession(){
+  // Ne pas auto-rediriger apres un logout
+  if(new URLSearchParams(window.location.search).get('logout')==='1') return;
   const { data:{ session } } = await sb.auth.getSession();
   if(session?.user){
     showSuccess(session.user.email);
   }
 }
 
-// ── Auth functions ──────────────────────────────────────
+// ââ Auth functions ââââââââââââââââââââââââââââââââââââââ
 function switchTab(tab){
   const isLogin = tab === 'login';
   document.getElementById('tabLogin').classList.toggle('active', isLogin);
@@ -713,7 +715,7 @@ async function doLogin(){
   setMsg('loginMsg','');
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
   setBtnLoading('loginBtn', false);
-  if(error){ setMsg('loginMsg', '❌ ' + error.message); return; }
+  if(error){ setMsg('loginMsg', 'â ' + error.message); return; }
   showSuccess(data.user.email);
 }
 
@@ -723,14 +725,14 @@ async function doRegister(){
   const pwd2  = document.getElementById('regPwd2').value;
   if(!email || !pwd){ setMsg('regMsg','Tous les champs sont requis'); return; }
   if(pwd !== pwd2){ setMsg('regMsg','Les mots de passe ne correspondent pas'); return; }
-  if(pwd.length < 6){ setMsg('regMsg','Mot de passe trop court (min. 6 caractères)'); return; }
+  if(pwd.length < 6){ setMsg('regMsg','Mot de passe trop court (min. 6 caractÃ¨res)'); return; }
   setBtnLoading('regBtn', true);
   setMsg('regMsg','');
   const { data, error } = await sb.auth.signUp({ email, password: pwd });
   setBtnLoading('regBtn', false);
-  if(error){ setMsg('regMsg', '❌ ' + error.message); return; }
+  if(error){ setMsg('regMsg', 'â ' + error.message); return; }
   if(data.user && !data.session){
-    setMsg('regMsg', '✉ Email de confirmation envoyé — vérifiez votre boîte mail', 'ok');
+    setMsg('regMsg', 'â Email de confirmation envoyÃ© â vÃ©rifiez votre boÃ®te mail', 'ok');
   } else {
     showSuccess(data.user.email);
   }
@@ -742,22 +744,22 @@ async function doForgot(){
   const { error } = await sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + '/' + TERMINAL_URL
   });
-  if(error){ setMsg('loginMsg','❌ ' + error.message); }
-  else { setMsg('loginMsg','✉ Email de réinitialisation envoyé', 'ok'); }
+  if(error){ setMsg('loginMsg','â ' + error.message); }
+  else { setMsg('loginMsg','â Email de rÃ©initialisation envoyÃ©', 'ok'); }
 }
 
-// ── Success → redirect ──────────────────────────────────
+// ââ Success â redirect ââââââââââââââââââââââââââââââââââ
 function showSuccess(email){
   const ov = document.getElementById('successOverlay');
   document.getElementById('successEmail').textContent = email.toUpperCase();
   ov.classList.add('show');
-  // Redirect après animation (1.5s bar + 0.8s délai)
+  // Redirect aprÃ¨s animation (1.5s bar + 0.8s dÃ©lai)
   setTimeout(() => {
     window.location.href = TERMINAL_URL;
   }, 2600);
 }
 
-// ── Enter key ───────────────────────────────────────────
+// ââ Enter key âââââââââââââââââââââââââââââââââââââââââââ
 ['loginEmail','loginPwd'].forEach(id =>
   document.getElementById(id)?.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); })
 );
@@ -765,7 +767,7 @@ function showSuccess(email){
   document.getElementById(id)?.addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); })
 );
 
-// ── Clock ───────────────────────────────────────────────
+// ââ Clock âââââââââââââââââââââââââââââââââââââââââââââââ
 function updateClock(){
   const now = new Date();
   const h = String(now.getUTCHours()).padStart(2,'0');
@@ -777,7 +779,7 @@ function updateClock(){
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── Static market data (fallback si Supabase vide) ──────
+// ââ Static market data (fallback si Supabase vide) ââââââ
 const STATIC_TICKERS = [
   {s:'SNTS', p:15500, c:+2.15}, {s:'SGBC', p:12800, c:-0.78},
   {s:'ETIT', p:22000, c:+1.40}, {s:'PALC', p:2860,  c:+7.40},
@@ -827,16 +829,16 @@ async function loadTickers(){
   }
 }
 
-// ── News feed (static — peut être dynamisé) ─────────────
+// ââ News feed (static â peut Ãªtre dynamisÃ©) âââââââââââââ
 const NEWS = [
-  {t:'16:32', txt:'PALC · Palm CI annonce dividende exceptionnel de 420 FCFA/action'},
-  {t:'15:58', txt:'BRVM · Volume journalier en hausse de 34% sur la séance du mercredi'},
-  {t:'14:22', txt:'SNTS · Sonatel maintient sa position de tête avec 15 500 FCFA'},
-  {t:'13:45', txt:'ETIT · Ecobank Trans enregistre une hausse de 1,4% à la clôture'},
-  {t:'12:30', txt:'ORAC · Orange CI progresse de 3,1% portée par les télécoms'},
-  {t:'11:15', txt:'SGBC · Société Générale CI en légère baisse à 12 800 FCFA'},
-  {t:'10:45', txt:'BOAB · Bank of Africa Bénin stable malgré la volatilité régionale'},
-  {t:'09:30', txt:'BRVM · Ouverture en hausse, les valeurs bancaires mènent la danse'},
+  {t:'16:32', txt:'PALC Â· Palm CI annonce dividende exceptionnel de 420 FCFA/action'},
+  {t:'15:58', txt:'BRVM Â· Volume journalier en hausse de 34% sur la sÃ©ance du mercredi'},
+  {t:'14:22', txt:'SNTS Â· Sonatel maintient sa position de tÃªte avec 15 500 FCFA'},
+  {t:'13:45', txt:'ETIT Â· Ecobank Trans enregistre une hausse de 1,4% Ã  la clÃ´ture'},
+  {t:'12:30', txt:'ORAC Â· Orange CI progresse de 3,1% portÃ©e par les tÃ©lÃ©coms'},
+  {t:'11:15', txt:'SGBC Â· SociÃ©tÃ© GÃ©nÃ©rale CI en lÃ©gÃ¨re baisse Ã  12 800 FCFA'},
+  {t:'10:45', txt:'BOAB Â· Bank of Africa BÃ©nin stable malgrÃ© la volatilitÃ© rÃ©gionale'},
+  {t:'09:30', txt:'BRVM Â· Ouverture en hausse, les valeurs bancaires mÃ¨nent la danse'},
 ];
 
 function renderNews(){
@@ -847,14 +849,14 @@ function renderNews(){
     </div>`).join('');
 }
 
-// ── Marquee ─────────────────────────────────────────────
+// ââ Marquee âââââââââââââââââââââââââââââââââââââââââââââ
 function renderMarquee(){
   const items = STATIC_TICKERS.map(t=>{
     const up = t.c >= 0;
     return `<span class="marquee-item">
       <span class="sym">${t.s}</span>
       ${t.p.toLocaleString('fr')} FCFA
-      <span class="${up?'up':'dn'}">${up?'▲':'▼'}${Math.abs(t.c).toFixed(2)}%</span>
+      <span class="${up?'up':'dn'}">${up?'â²':'â¼'}${Math.abs(t.c).toFixed(2)}%</span>
     </span>`;
   }).join('');
   // Double pour le loop
@@ -862,7 +864,7 @@ function renderMarquee(){
   track.innerHTML = items + items;
 }
 
-// ── Background canvas (particle grid) ───────────────────
+// ââ Background canvas (particle grid) âââââââââââââââââââ
 function initCanvas(){
   const canvas = document.getElementById('bgCanvas');
   const ctx    = canvas.getContext('2d');
@@ -925,7 +927,7 @@ function initCanvas(){
   init(); draw();
 }
 
-// ── Init ────────────────────────────────────────────────
+// ââ Init ââââââââââââââââââââââââââââââââââââââââââââââââ
 (async function init(){
   initCanvas();
   renderTickers(STATIC_TICKERS);
