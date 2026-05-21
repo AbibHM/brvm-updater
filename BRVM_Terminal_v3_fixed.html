@@ -48,20 +48,22 @@ body{
 /* ─── Top bar ─────────────────────────────────────────── */
 .topbar{
   display:grid;
-  grid-template-columns: 220px 1fr auto 290px;
+  grid-template-columns: 180px 1fr auto auto;
   align-items:center;
-  height:34px;
+  height:36px;
   background:linear-gradient(180deg, #1a1100 0%, #000 100%);
   border-bottom:1px solid var(--orange-dim);
-  padding:0 8px;
-  gap:8px;
+  padding:0 6px;
+  gap:6px;
+  overflow:hidden;
 }
-.topbar-actions{display:flex;align-items:center;gap:6px}
+.topbar-actions{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow:hidden}
 .tb-btn{
-  display:inline-flex;align-items:center;gap:5px;
+  display:inline-flex;align-items:center;gap:4px;
   background:#000;color:var(--orange);border:1px solid var(--orange-dim);
-  padding:3px 9px;font-family:inherit;font-size:11px;font-weight:600;
+  padding:2px 8px;font-family:inherit;font-size:11px;font-weight:600;
   cursor:pointer;letter-spacing:0.5px;user-select:none;
+  white-space:nowrap;flex-shrink:0;
 }
 .tb-btn:hover{background:var(--orange);color:#000}
 .tb-btn[disabled]{opacity:0.5;cursor:wait}
@@ -116,8 +118,9 @@ body{
 .cmdbar .hint{color:var(--dim);font-size:10px}
 
 .topbar-right{
-  display:flex;align-items:center;justify-content:flex-end;gap:14px;
-  color:var(--white);font-size:11px;
+  display:flex;align-items:center;justify-content:flex-end;gap:8px;
+  color:var(--white);font-size:11px;flex-shrink:0;overflow:hidden;
+  white-space:nowrap;
 }
 .market-status{display:flex;align-items:center;gap:5px}
 .market-status .pulse{
@@ -159,7 +162,7 @@ body{
 
 /* ─── Main view container ────────────────────────────── */
 .viewport{
-  height:calc(100vh - 34px - 24px - 22px);
+  height:calc(100vh - 36px - 24px - 22px);
   overflow:hidden;
   background:var(--bg-deep);
 }
@@ -953,17 +956,17 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
   <div class="cmdbar">
     <span class="prompt">&gt;</span>
     <input id="cmd" placeholder="Tapez une commande : SNTS GO  |  PF GO  |  SNTS vs ORAC  |  HELP" autocomplete="off" autofocus>
-    <span class="hint">Ctrl+K · F1-F8</span>
+    <span class="hint" style="display:none"></span>
   </div>
   <div class="topbar-actions">
-    <button class="tb-btn" style="border-color:#ff4444;color:#ff4444" onclick="Object.keys(localStorage).filter(k=>k.startsWith('brvm_') && k!=='brvm_portfolio_v2' && k!=='brvm_user_id').forEach(k=>localStorage.removeItem(k));Object.keys(_histMem||{}).forEach(k=>delete _histMem[k]);if(_curView==='charts')renderCharts();else location.reload();"  title="Vider tout le cache prix et recharger depuis Supabase">
-      <span class="ic">🗑</span> VIDER CACHE
+    <button class="tb-btn" style="border-color:#ff4444;color:#ff4444;padding:2px 7px;white-space:nowrap" onclick="Object.keys(localStorage).filter(k=>k.startsWith('brvm_') && k!=='brvm_portfolio_v2' && k!=='brvm_user_id').forEach(k=>localStorage.removeItem(k));Object.keys(_histMem||{}).forEach(k=>delete _histMem[k]);if(_curView==='charts')renderCharts();else location.reload();" title="Vider le cache prix">
+      🗑 CACHE
     </button>
-    <button class="tb-btn" id="refreshBtn" onclick="refreshData()" title="Mettre à jour les cours depuis votre base Supabase">
-      <span class="ic">🔄</span> REFRESH
+    <button class="tb-btn" id="refreshBtn" onclick="refreshData()" style="white-space:nowrap" title="Actualiser les cours">
+      🔄 REFRESH
     </button>
-    <button class="tb-btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()" title="Activer le rafraîchissement automatique">
-      <span class="ic">⏱</span> AUTO <span id="autoRefreshLabel">OFF</span>
+    <button class="tb-btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()" style="white-space:nowrap" title="Rafraîchissement auto">
+      ⏱ AUTO <span id="autoRefreshLabel">OFF</span>
     </button>
     <select id="autoRefreshInterval" style="background:#000;color:var(--orange);border:1px solid var(--orange-dim);font-family:inherit;font-size:10px;padding:2px 4px;cursor:pointer" title="Intervalle de rafraîchissement">
       <option value="30">30s</option>
@@ -972,8 +975,8 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
       <option value="300">5min</option>
       <option value="600">10min</option>
     </select>
-    <button class="tb-btn" id="exportBtn" onclick="toggleExport(event)" title="Exporter les données en CSV/Excel">
-      <span class="ic">📥</span> EXPORT
+    <button class="tb-btn" id="exportBtn" onclick="toggleExport(event)" style="white-space:nowrap" title="Exporter les données">
+      📥 EXPORT
     </button>
     <div class="export-pop" id="exportPop">
       <div class="item all" onclick="exportAllXLSX()" style="background:#2a1a00">
@@ -995,17 +998,17 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
         <span class="ic">📦</span><span>Tout exporter en CSV</span><span class="desc">4 fichiers séparés</span>
       </div>
     </div>
-    <!-- Auth button -->
-    <div id="authUserBadge" style="display:none" title="Connecté">
-      <div class="dot"></div>
-      <span id="authUserEmail" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-      <button class="tb-btn" style="padding:2px 8px;font-size:10px" onclick="_authLogout()" title="Se déconnecter">⏏ LOGOUT</button>
-    </div>
-    <button class="tb-btn" id="authLoginBtn" onclick="showAuthModal()" style="border-color:var(--cyan);color:var(--cyan)" title="Se connecter">
-      <span class="ic">🔐</span> LOGIN
-    </button>
   </div>
   <div class="topbar-right">
+    <!-- Auth badge / login button intégrés dans topbar-right -->
+    <div id="authUserBadge" style="display:none;align-items:center;gap:4px;flex-shrink:0" title="Connecté">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);flex-shrink:0"></div>
+      <span id="authUserEmail" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--dim)"></span>
+      <button class="tb-btn" style="padding:1px 6px;font-size:10px;border-color:#ff4444;color:#ff4444" onclick="_authLogout()" title="Déconnexion">LOGOUT</button>
+    </div>
+    <button class="tb-btn" id="authLoginBtn" onclick="showAuthModal()" style="border-color:var(--cyan);color:var(--cyan);font-size:10px;padding:2px 8px;white-space:nowrap;flex-shrink:0" title="Se connecter">
+      🔐 LOGIN
+    </button>
     <div class="market-status" id="mstatus"><span class="pulse"></span> <span id="mstatusLabel">MARCHÉ OUVERT</span></div>
     <div class="clock" id="clock">--:--:--</div>
     <div id="date" style="color:var(--dim)">--</div>
@@ -4241,6 +4244,17 @@ function _cacheSlot(){
   return `${date}_${slot}`;
 }
 
+// Wrapper fetch avec timeout (évite les requêtes qui pendent indéfiniment)
+async function _fetchWithTimeout(url, opts, timeoutMs=10000){
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+  try{
+    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(tid);
+    return r;
+  }catch(e){ clearTimeout(tid); throw e; }
+}
+
 async function fetchRealHistory(sym){
   const now = Date.now();
   // Cache mémoire : invalide si le slot a changé (ex: passage à 16h30)
@@ -4256,15 +4270,23 @@ async function fetchRealHistory(sym){
     // order=date.desc + limit=800 → prend les 800 séances les plus RÉCENTES (inclut 2026)
     // rows.reverse() remet en ordre chronologique croissant côté client
     const url = `${SUPABASE_URL}/rest/v1/brvm_prices?ticker=eq.${encodeURIComponent(sym)}&order=date.desc&limit=800&select=date,open,high,low,close,volume`;
-    const r = await fetch(url, {
-      cache: 'no-cache',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Accept': 'application/json'
-      }
-    });
-    if(!r.ok) throw new Error(r.status);
+    // Retry 2x avec délai croissant en cas d'erreur réseau transitoire
+    let r, lastErr;
+    for(let attempt = 0; attempt < 3; attempt++){
+      try{
+        if(attempt > 0) await new Promise(res => setTimeout(res, attempt * 800));
+        r = await _fetchWithTimeout(url, {
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Accept': 'application/json'
+          }
+        });
+        if(r.ok) break;
+        lastErr = new Error('HTTP ' + r.status);
+      }catch(fetchErr){ lastErr = fetchErr; r = null; }
+    }
+    if(!r || !r.ok) throw lastErr || new Error('fetch failed');
     const rows = await r.json();
     if(!rows.length) throw new Error('empty');
     const data = rows.reverse().map(d => ({  // reverse → ordre chronologique asc, données 2026 incluses
@@ -5210,7 +5232,7 @@ async function initRealPrices(){
   if(statusEl) statusEl.textContent = "⏳ INIT DONNÉES RÉELLES…";
 
   const tickers = [...new Map(TICKERS.map(t=>[t.s,t])).values()]; // dédupliqués
-  const BATCH = 8;
+  const BATCH = 6; // Réduit pour éviter la saturation réseau
   let ok = 0, fail = 0;
   const failList = [];
 
@@ -5518,6 +5540,8 @@ async function _authLogin(){
   _authUpdateUI(data.user);
   hideAuthModal();
   toast('✓ Connecté · ' + data.user.email);
+  // Remettre la vue courante correctement
+  showView(_curView || 'markets');
   // Recharger le portfolio depuis Supabase avec le vrai user_id
   await _bootLoadPortfolioAuth();
 }
@@ -5574,10 +5598,12 @@ async function _bootLoadPortfolioAuth(){
   try{
     const userId = _authUser.id;
     const url = `${SUPABASE_URL}/rest/v1/brvm_portfolio?user_id=eq.${encodeURIComponent(userId)}&select=ticker,qty,avg_price,date,broker,notes&order=ticker.asc`;
+    const _session = await _sbClient.auth.getSession();
+    const _accessToken = _session.data?.session?.access_token || SUPABASE_KEY;
     const resp = await fetch(url, {
       headers: {
         'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${_sbClient.auth.session()?.access_token || SUPABASE_KEY}`
+        'Authorization': `Bearer ${_accessToken}`
       }
     });
     if(!resp.ok) return;
@@ -5595,6 +5621,8 @@ _sbClient.auth.onAuthStateChange(async (event, session) => {
   const user = session?.user || null;
   _authUpdateUI(user);
   if(event === 'SIGNED_IN'){
+    // S'assurer que la vue est bien affichée après connexion
+    showView(_curView || 'markets');
     await _bootLoadPortfolioAuth();
   }
 });
@@ -5604,6 +5632,8 @@ _sbClient.auth.onAuthStateChange(async (event, session) => {
   const { data } = await _sbClient.auth.getSession();
   if(data?.session?.user){
     _authUpdateUI(data.session.user);
+    // S'assurer que le terminal est visible (pas seulement le modal)
+    showView(_curView || 'markets');
     await _bootLoadPortfolioAuth();
   }
   // Patcher _PF_USER_ID pour utiliser l'auth UUID si connecté
