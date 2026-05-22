@@ -102,18 +102,31 @@ def upsert_prices(rows):
             print("Supabase error " + str(resp.status_code) + ": " + resp.text[:300])
     return inserted
 
-def update_meta(tickers_count, source="BOC PDF"):
-    url = SUPABASE_URL + "/rest/v1/brvm_meta"
-    payload = {
-        "last_updated": datetime.now(timezone.utc).isoformat(),
-        "source": source,
-        "tickers_count": tickers_count,
-    }
-    resp = requests.post(url, headers=HEADERS_SB, json=payload, timeout=15)
-    if resp.status_code in (200, 201):
-        print("brvm_meta mis a jour - " + str(tickers_count) + " tickers | source=" + source)
-    else:
-        print("brvm_meta erreur " + str(resp.status_code) + ": " + resp.text[:200])
+def update_meta(rows):
+    """Met a jour brvm_meta avec last_updated, last_close, last_volume pour chaque ticker."""
+    if not rows:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    ok = 0
+    for row in rows:
+        url = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=eq." + row["ticker"]
+        payload = {
+            "last_updated": now,
+            "last_close": row.get("close"),
+            "last_volume": row.get("volume", 0),
+        }
+        resp = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
+        if resp.status_code in (200, 204):
+            ok += 1
+        else:
+            # Ligne inexistante -> INSERT
+            requests.post(
+                SUPABASE_URL + "/rest/v1/brvm_meta",
+                headers=HEADERS_SB,
+                json={"ticker": row["ticker"], **payload, "total_rows": 0},
+                timeout=10
+            )
+    print("brvm_meta mis a jour: " + str(ok) + "/" + str(len(rows)) + " tickers")
 
 def get_pdf_urls():
     d = TODAY_COMPACT
@@ -242,7 +255,7 @@ def main():
     print("Envoi vers Supabase...")
     inserted = upsert_prices(rows)
     print(f"{inserted}/{len(rows)} lignes upsertees")
-    update_meta(tickers_count=inserted, source=pdf_source if pdf_source else "brvm.org HTML")
+    update_meta(rows)
     print("Termine: " + datetime.now().strftime("%H:%M:%S UTC"))
     sys.exit(0 if inserted > 0 else 1)
 
