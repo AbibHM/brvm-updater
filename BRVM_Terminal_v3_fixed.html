@@ -1549,10 +1549,26 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
    en Phase 2 (génération via brvm_terminal.py)
    ============================================================ */
 const INDICES = [
-  {code:"BRVM-C",    name:"Composite",              val:273.42,  varPct: 0.85,  varAbs: 2.30},
-  {code:"BRVM-30",   name:"30 plus actives",        val:135.67,  varPct: 0.92,  varAbs: 1.24},
-  {code:"BRVM-PRES", name:"Prestige (sect. finance)",val:111.84, varPct:-0.34,  varAbs:-0.38},
+  {code:"BRVM-C",    name:"Composite",               val:null, varPct:null, varAbs:null},
+  {code:"BRVM-30",   name:"30 plus actives",          val:null, varPct:null, varAbs:null},
+  {code:"BRVM-PRES", name:"Prestige (sect. finance)", val:null, varPct:null, varAbs:null},
 ];
+
+async function fetchIndices(){
+  try{
+    const codes = ["BRVM-C","BRVM-30","BRVM-PRES"];
+    const url = SUPABASE_URL+"/rest/v1/brvm_meta?ticker=in.("+codes.join(",")+")&select=ticker,last_close,last_updated";
+    const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+    if(!r.ok) return;
+    const rows = await r.json();
+    if(!Array.isArray(rows) || rows.length===0) return;
+    rows.forEach(row => {
+      const i = INDICES.find(x => x.code === row.ticker);
+      if(i && row.last_close) i.val = row.last_close;
+    });
+    if(_curView === "markets") renderMarkets();
+  }catch(e){ console.warn("[BRVM] fetchIndices:", e); }
+}
 
 const CAP_STATS = [
   {k:"Capitalisation actions",      v:"7 845 Mds FCFA"},
@@ -4424,6 +4440,7 @@ async function refreshData(){
   btn.disabled = false; btn.innerHTML = '<span class="ic">🔄</span> REFRESH';
   $("sbCmd").textContent = `REFRESH (${updated}↑/${failed}✗)`;
   fetchSupabaseLastUpdate(); // mettre a jour la date affichee
+  fetchIndices(); // recharger les indices BRVM
   const _sbD = $("sbData");
   if(_sbD){
     if(updated > 0 && failed === 0){ _sbD.textContent = "RÉEL"; _sbD.style.color = "var(--cyan)"; }
@@ -5338,6 +5355,7 @@ async function fetchSupabaseLastUpdate(){
 showView("markets");
 initRealPrices();   // fetch asynchrone en arrière-plan
 fetchSupabaseLastUpdate(); // affiche la date de dernière MAJ Supabase
+fetchIndices(); // charge les indices BRVM live
 
 
 // ── Quick Buy depuis vue DES ─────────────────────────────────────────────────
