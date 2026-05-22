@@ -4423,6 +4423,7 @@ async function refreshData(){
   showView(_curView || "markets");
   btn.disabled = false; btn.innerHTML = '<span class="ic">🔄</span> REFRESH';
   $("sbCmd").textContent = `REFRESH (${updated}↑/${failed}✗)`;
+  fetchSupabaseLastUpdate(); // mettre a jour la date affichee
   const _sbD = $("sbData");
   if(_sbD){
     if(updated > 0 && failed === 0){ _sbD.textContent = "RÉEL"; _sbD.style.color = "var(--cyan)"; }
