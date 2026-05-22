@@ -1556,38 +1556,22 @@ const INDICES = [
 
 async function fetchIndices(){
   try{
-    // 1) Récupérer last_close depuis brvm_meta
-    const urlMeta = SUPABASE_URL+"/rest/v1/brvm_meta?ticker=like.BRVM-*&select=ticker,last_close,last_updated";
+    // Récupérer last_close + change_pct directement depuis brvm_meta
+    const urlMeta = SUPABASE_URL+"/rest/v1/brvm_meta?ticker=like.BRVM-*&select=ticker,last_close,change_pct,last_updated";
     const rMeta = await fetch(urlMeta, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
     if(!rMeta.ok) return;
     const rows = await rMeta.json();
     if(!Array.isArray(rows) || rows.length===0) return;
     rows.forEach(row => {
       const i = INDICES.find(x => x.code === row.ticker);
-      if(i && row.last_close) i.val = row.last_close;
-    });
-
-    // 2) Récupérer les 2 dernières séances depuis brvm_prices pour calculer la variation
-    const idxTickers = INDICES.map(x=>x.code).join(",");
-    const urlPrices = SUPABASE_URL+"/rest/v1/brvm_prices?ticker=in.("+idxTickers+")&select=ticker,date,close&order=date.desc&limit=6";
-    const rPrices = await fetch(urlPrices, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
-    if(rPrices.ok){
-      const prices = await rPrices.json();
-      if(Array.isArray(prices) && prices.length > 0){
-        INDICES.forEach(idx => {
-          const pts = prices.filter(p => p.ticker === idx.code).sort((a,b)=>b.date.localeCompare(a.date));
-          if(pts.length >= 2){
-            const last = pts[0].close;
-            const prev = pts[1].close;
-            if(prev > 0){
-              idx.varAbs = +(last - prev).toFixed(2);
-              idx.varPct = +((last - prev)/prev*100).toFixed(2);
-            }
-          }
-        });
+      if(!i) return;
+      if(row.last_close) i.val = row.last_close;
+      if(row.change_pct != null){
+        i.varPct = row.change_pct;
+        // varAbs = val * changePct/100
+        i.varAbs = i.val ? +(i.val * row.change_pct / 100).toFixed(2) : 0;
       }
-    }
-
+    });
     // Re-render si markets visible, sinon juste mettre a jour les donnees
     if(_curView === "markets" || !_curView) renderMarkets();
   }catch(e){ console.warn("[BRVM] fetchIndices:", e); }
