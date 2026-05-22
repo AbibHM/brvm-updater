@@ -88,6 +88,54 @@ def delete_date_prices(date_str):
     except Exception as e:
         print("Erreur suppression: " + str(e))
 
+def scrape_indices():
+    """Scrape les indices BRVM depuis brvm.org et les met a jour dans brvm_meta."""
+    headers = {"User-Agent": USER_AGENT, "Accept-Language": "fr-FR,fr;q=0.9"}
+    try:
+        resp = requests.get(BRVM_SCRAPE_URL, headers=headers, timeout=30, verify=False)
+        resp.raise_for_status()
+    except Exception as e:
+        print("  Erreur indices HTML: " + str(e))
+        return
+
+    now = datetime.now(timezone.utc).isoformat()
+    text = re.sub(r"<[^>]+>", " ", resp.text)  # strip HTML tags
+    text = re.sub(r"[\xa0\u202f]", " ", text)  # espaces insecables
+
+    for code in ["BRVM-C", "BRVM-30", "BRVM-PRES"]:
+        idx = text.find(code)
+        if idx < 0:
+            continue
+        snippet = text[idx + len(code):idx + len(code) + 60]
+        # Extraire tous les nombres decimaux (format francais: 421,55)
+        nums = re.findall(r"-?\d[\d ]*,\d+", snippet)
+        if not nums:
+            continue
+        try:
+            # Le premier nombre positif > 10 est la valeur de l index
+            val = None
+            var_pct = 0.0
+            for n in nums:
+                v = float(n.replace(" ", "").replace(",", "."))
+                if val is None and abs(v) > 10:
+                    val = v
+                elif val is not None:
+                    var_pct = v
+                    break
+            if val is None:
+                continue
+        except Exception:
+            continue
+
+        # Upsert dans brvm_meta
+        url = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=eq." + code
+        payload = {"last_updated": now, "last_close": val, "last_volume": 0}
+        r = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
+        if r.status_code not in (200, 204):
+            requests.post(SUPABASE_URL + "/rest/v1/brvm_meta", headers=HEADERS_SB,
+                json={"ticker": code, **payload, "total_rows": 0}, timeout=10)
+        print(f"  Indice {code}: {val} ({var_pct:+.2f}%)")
+
 def upsert_prices(rows):
     if not rows:
         return 0
@@ -256,6 +304,9 @@ def main():
     inserted = upsert_prices(rows)
     print(f"{inserted}/{len(rows)} lignes upsertees")
     update_meta(rows)
+    # Mettre a jour les indices BRVM
+    print("Mise a jour des indices BRVM...")
+    scrape_indices()
     print("Termine: " + datetime.now().strftime("%H:%M:%S UTC"))
     sys.exit(0 if inserted > 0 else 1)
 
