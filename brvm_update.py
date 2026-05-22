@@ -102,6 +102,7 @@ def scrape_indices():
     text = re.sub(r"<[^>]+>", " ", resp.text)  # strip HTML tags
     text = re.sub(r"[\xa0\u202f]", " ", text)  # espaces insecables
 
+    indrows = []
     for code in ["BRVM-C", "BRVM-30", "BRVM-PRES"]:
         idx = text.find(code)
         if idx < 0:
@@ -135,6 +136,12 @@ def scrape_indices():
             requests.post(SUPABASE_URL + "/rest/v1/brvm_meta", headers=HEADERS_SB,
                 json={"ticker": code, **payload, "total_rows": 0}, timeout=10)
         print(f"  Indice {code}: {val} ({var_pct:+.2f}%)")
+    # Upsert batch
+    if indrows:
+        r = requests.post(SUPABASE_URL + "/rest/v1/brvm_meta",
+            headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
+            json=indrows, timeout=15)
+        print("  Indices upsert: " + str(r.status_code))
 
 def upsert_prices(rows):
     if not rows:
