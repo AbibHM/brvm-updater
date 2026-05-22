@@ -1565,7 +1565,8 @@ async function fetchIndices(){
       const i = INDICES.find(x => x.code === row.ticker);
       if(i && row.last_close) i.val = row.last_close;
     });
-    if(_curView === "markets") renderMarkets();
+    // Re-render si markets visible, sinon juste mettre a jour les donnees
+    if(_curView === "markets" || !_curView) renderMarkets();
   }catch(e){ console.warn("[BRVM] fetchIndices:", e); }
 }
 
