@@ -1577,16 +1577,76 @@ async function fetchIndices(){
   }catch(e){ console.warn("[BRVM] fetchIndices:", e); }
 }
 
-const CAP_STATS = [
-  {k:"Capitalisation actions",      v:"7 845 Mds FCFA"},
-  {k:"Capitalisation obligations",  v:"11 230 Mds FCFA"},
-  {k:"Valeur transactions du jour", v:"1 845 M FCFA"},
-  {k:"Volume échangé",              v:"412 758 titres"},
-  {k:"Nombre de transactions",      v:"3 215"},
-  {k:"Tickers en hausse",           v:"18"},
-  {k:"Tickers en baisse",           v:"12"},
-  {k:"Tickers stables",             v:"17"},
+// CAP_STATS — calculé dynamiquement depuis brvm_meta + TICKERS
+let CAP_STATS = [
+  {k:"Capitalisation actions",      v:"—"},
+  {k:"Capitalisation obligations",  v:"—"},
+  {k:"Valeur transactions du jour", v:"—"},
+  {k:"Volume échangé",              v:"—"},
+  {k:"Nombre de transactions",      v:"—"},
+  {k:"Tickers en hausse",           v:"—"},
+  {k:"Tickers en baisse",           v:"—"},
+  {k:"Tickers stables",             v:"—"},
 ];
+
+async function fetchCapStats(){
+  try{
+    // Récupérer les données de marché depuis brvm_meta
+    const url = SUPABASE_URL+"/rest/v1/brvm_meta?ticker=not.like.BRVM-*&select=ticker,last_close,last_volume,last_updated";
+    const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+    if(!r.ok) return;
+    const rows = await r.json();
+    if(!Array.isArray(rows) || rows.length===0) return;
+
+    // Calculer cap actions = somme(last_close * nb_actions) — approx via TICKERS
+    let capActions = 0;
+    rows.forEach(row => {
+      const t = TICKERS.find(x => x.s === row.ticker);
+      if(t && row.last_close && t.cap) capActions += t.cap;
+      else if(t && row.last_close) capActions += row.last_close * 1000; // approx
+    });
+
+    // Volume total du jour
+    const totalVol = rows.reduce((s,r) => s + (r.last_volume||0), 0);
+
+    // Valeur transactions (dernière date disponible depuis brvm_prices)
+    let valTx = 0;
+    try{
+      const today = new Date().toISOString().slice(0,10);
+      const urlTx = SUPABASE_URL+"/rest/v1/brvm_prices?date=eq."+today+"&select=close,volume";
+      const rTx = await fetch(urlTx, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+      if(rTx.ok){
+        const txRows = await rTx.json();
+        if(Array.isArray(txRows) && txRows.length > 0){
+          valTx = txRows.reduce((s,r) => s + (r.close||0)*(r.volume||0), 0);
+        }
+      }
+    }catch(e){}
+
+    // Hausses / Baisses / Stables calculés depuis TICKERS (prix live)
+    const hausse = TICKERS.filter(t => (t.v||0) > 0).length;
+    const baisse = TICKERS.filter(t => (t.v||0) < 0).length;
+    const stable = TICKERS.filter(t => (t.v||0) === 0).length;
+
+    // Formater
+    const fmtMds = v => v >= 1e9 ? (v/1e9).toFixed(0)+" Mds FCFA" : v >= 1e6 ? (v/1e6).toFixed(0)+" M FCFA" : v.toFixed(0)+" FCFA";
+    const fmtNum = v => v.toLocaleString("fr-FR");
+
+    CAP_STATS = [
+      {k:"Capitalisation actions",      v: capActions > 0 ? fmtMds(capActions*1e3) : "—"},
+      {k:"Capitalisation obligations",  v:"—"},  // non disponible via scrape
+      {k:"Valeur transactions du jour", v: valTx > 0 ? fmtMds(valTx) : "—"},
+      {k:"Volume échangé",              v: totalVol > 0 ? fmtNum(totalVol)+" titres" : "—"},
+      {k:"Nombre de transactions",      v: rows.length > 0 ? rows.length+" tickers actifs" : "—"},
+      {k:"Tickers en hausse",           v: hausse > 0 ? String(hausse) : "—"},
+      {k:"Tickers en baisse",           v: baisse > 0 ? String(baisse) : "—"},
+      {k:"Tickers stables",             v: stable > 0 ? String(stable) : "—"},
+    ];
+
+    // Re-render si markets visible
+    if(_curView === "markets" || !_curView) renderMarkets();
+  }catch(e){ console.warn("[BRVM] fetchCapStats:", e); }
+}
 
 /* ============================================================
    TICKERS BRVM — 7 positions du portefeuille avec donnée
@@ -1737,34 +1797,51 @@ const TICKERS = [
   {s:"NSBC",  n:"NSIA Banque CI",            sec:"Finance",         cty:"Côte d'Ivoire",  p:15000, v: 0.00, vol:120,   cap:432000,  pe: 8.2, pb:1.1, dy:5.5,  roe:14.2, roa:1.2, ev:520000,  eps:1829, debt:5.8},
 ];
 
-/* News mock (réaliste) */
-const NEWS = [
-  {t:"08:45", src:"Sika Finance",      tk:"SNTS",  h:"Sonatel : dividende 2025 confirmé à 1 670 FCFA / action, en hausse de 6,4%"},
-  {t:"08:12", src:"AgenceEcofin",      tk:"BRVM",  h:"BRVM-C franchit le seuil des 270 points pour la 1ère fois depuis 2018"},
-  {t:"07:55", src:"Jeune Afrique",     tk:"ETIT",  h:"Ecobank Transnational : Ade Ayeyemi confirme la cession des activités au Tchad"},
-  {t:"07:30", src:"BRVM Officiel",     tk:"ORAC",  h:"Orange CI : avis de paiement du dividende 2025 — détachement le 20/05/2026"},
-  {t:"hier",  src:"Sika Finance",      tk:"PALC",  h:"Palm CI : résultats S1 attendus le 28 mai — consensus 7,2 Mds FCFA"},
-  {t:"hier",  src:"AgenceEcofin",      tk:"NSBC",  h:"NSIA Banque CI : NSIA Participations relève sa participation à 67,3%"},
-  {t:"hier",  src:"BRVM Officiel",     tk:"SGBC",  h:"Société Générale CI : convocation à l'AGO du 12 juin 2026"},
-  {t:"hier",  src:"Jeune Afrique",     tk:"BRVM",  h:"UEMOA : la BCEAO maintient son taux directeur à 3,75% pour le 4ème mois"},
-  {t:"-2j",   src:"Sika Finance",      tk:"SOGC",  h:"SOGB : production caoutchouc en hausse de 12% au T1, prix mondial soutenu"},
-  {t:"-2j",   src:"AgenceEcofin",      tk:"CIEC",  h:"CIE Côte d'Ivoire : signature du contrat de concession pour 25 ans"},
-  {t:"-2j",   src:"BRVM Officiel",     tk:"CBIBF", h:"Coris Bank International : émission obligataire de 35 Mds FCFA approuvée"},
-  {t:"-3j",   src:"Sika Finance",      tk:"NTLC",  h:"Nestlé CI : profit warning S1 — Magnum et glaces sous pression"},
-];
+// NEWS — chargées depuis Supabase brvm_news (alimenté par scraper)
+let NEWS = [];
 
-/* Évènements 30j */
-const EVENTS = [
-  {date:"15/05", type:"DIV",  tk:"SNTS",  desc:"Détachement dividende 1 670 FCFA"},
-  {date:"20/05", type:"DIV",  tk:"ORAC",  desc:"Détachement dividende 1 150 FCFA"},
-  {date:"22/05", type:"AGO",  tk:"BOAC",  desc:"Assemblée Générale Ordinaire"},
-  {date:"28/05", type:"RES",  tk:"PALC",  desc:"Résultats S1 — conférence 16h GMT"},
-  {date:"03/06", type:"DIV",  tk:"SOGC",  desc:"Détachement dividende 932 FCFA"},
-  {date:"08/06", type:"AGE",  tk:"ETIT",  desc:"AGE — augmentation de capital 75 Mds"},
-  {date:"12/06", type:"AGO",  tk:"SGBC",  desc:"Assemblée Générale Ordinaire"},
-  {date:"15/06", type:"RES",  tk:"NTLC",  desc:"Résultats S1"},
-  {date:"22/06", type:"DIV",  tk:"NSBC",  desc:"Détachement dividende 388 FCFA"},
-];
+async function fetchNews(){
+  try{
+    const url = SUPABASE_URL+"/rest/v1/brvm_news?select=published_at,source,ticker,headline&order=published_at.desc&limit=30";
+    const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+    if(!r.ok) return;
+    const rows = await r.json();
+    if(!Array.isArray(rows) || rows.length===0) return;
+    const now = new Date();
+    NEWS = rows.map(row => {
+      const d = new Date(row.published_at);
+      const diffH = (now - d) / 3600000;
+      let t;
+      if(diffH < 12) t = d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      else if(diffH < 36) t = "hier";
+      else if(diffH < 60) t = "-2j";
+      else t = "-3j";
+      return {t, src: row.source||"BRVM", tk: row.ticker||"BRVM", h: row.headline};
+    });
+    if(_curView === "news") renderNews();
+  }catch(e){ console.warn("[BRVM] fetchNews:", e); }
+}
+
+// EVENTS — depuis Supabase brvm_events
+let EVENTS = [];
+
+async function fetchEvents(){
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const in30 = new Date(Date.now()+30*864e5).toISOString().slice(0,10);
+    const url = SUPABASE_URL+"/rest/v1/brvm_events?select=event_date,event_type,ticker,description&event_date=gte."+today+"&event_date=lte."+in30+"&order=event_date.asc&limit=30";
+    const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+    if(!r.ok) return;
+    const rows = await r.json();
+    if(!Array.isArray(rows) || rows.length===0) return;
+    EVENTS = rows.map(row => {
+      const d = new Date(row.event_date);
+      const dateStr = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      return {date: dateStr, type: row.event_type, tk: row.ticker, desc: row.description};
+    });
+    if(_curView === "news") renderNews();
+  }catch(e){ console.warn("[BRVM] fetchEvents:", e); }
+}
 
 /* Portefeuille — défaut Joel Thibaut au 15/05/2026 (CSV initial) */
 const PORTFOLIO_DEFAULT = []; // Vide par défaut — utilisez ✏ ÉDITER pour ajouter vos positions
@@ -5360,9 +5437,12 @@ async function fetchSupabaseLastUpdate(){
 
 // Démarrage : affiche markets d'abord (avec données statiques), puis init async
 showView("markets");
-initRealPrices();   // fetch asynchrone en arrière-plan
+initRealPrices();          // fetch asynchrone en arrière-plan
 fetchSupabaseLastUpdate(); // affiche la date de dernière MAJ Supabase
-fetchIndices(); // charge les indices BRVM live
+fetchIndices();            // charge les indices BRVM live
+fetchCapStats();           // capitalisation et stats marché dynamiques
+fetchNews();               // fil d'actualités depuis Supabase
+fetchEvents();             // calendrier événements depuis Supabase
 
 
 // ── Quick Buy depuis vue DES ─────────────────────────────────────────────────
