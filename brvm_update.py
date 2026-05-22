@@ -130,7 +130,7 @@ def scrape_indices():
 
         # Upsert dans brvm_meta
         url = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=eq." + code
-        payload = {"last_updated": now, "last_close": val, "last_volume": 0}
+        payload = {"last_updated": now, "last_close": val, "last_volume": 0, "change_pct": var_pct}
         r = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
         if r.status_code not in (200, 204):
             requests.post(SUPABASE_URL + "/rest/v1/brvm_meta", headers=HEADERS_SB,
