@@ -1648,6 +1648,81 @@ async function fetchCapStats(){
   }catch(e){ console.warn("[BRVM] fetchCapStats:", e); }
 }
 
+async function fetchFundamentals(){
+  try{
+    const url = SUPABASE_URL+"/rest/v1/brvm_fundamentals?select=ticker,name,sector,country,pe,pb,ps,ev_ebitda,p_fcf,roe,roic,roa,roce,marge_brute,marge_op,marge_nette,marge_ebitda,debt_equity,debt_ebitda,int_cov,current_ratio,quick_ratio,dy,payout,dividende,piotroski,growth_ca,growth_bpa,growth_rn,growth_div,bpa,vcp,beta,altman_z,mm50,mm200,ca,res_brut,res_exp,ebitda,rn,treso,dette,cap_propres,ev,cap_boursiere,score,fair_value,reco,fiscal_year";
+    const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+    if(!r.ok) return;
+    const rows = await r.json();
+    if(!Array.isArray(rows) || rows.length===0) return;
+
+    rows.forEach(row => {
+      // Trouver tous les tickers correspondants dans TICKERS
+      TICKERS.filter(t => t.s === row.ticker).forEach(t => {
+        // Valorisation
+        if(row.pe         != null) t.pe         = row.pe;
+        if(row.pb         != null) t.pb         = row.pb;
+        if(row.ps         != null) t.ps         = row.ps;
+        if(row.ev_ebitda  != null) t.evEbitda   = row.ev_ebitda;
+        if(row.p_fcf      != null) t.pFcf       = row.p_fcf;
+        // Rentabilité
+        if(row.roe        != null) t.roe        = row.roe;
+        if(row.roic       != null) t.roic       = row.roic;
+        if(row.roa        != null) t.roa        = row.roa;
+        if(row.roce       != null) t.roce       = row.roce;
+        // Marges
+        if(row.marge_brute   != null) t.margeBrute   = row.marge_brute;
+        if(row.marge_op      != null) t.margeOp      = row.marge_op;
+        if(row.marge_nette   != null) t.margeNette   = row.marge_nette;
+        if(row.marge_ebitda  != null) t.margeEbitda  = row.marge_ebitda;
+        // Structure financière
+        if(row.debt_equity   != null) t.debtEquity   = row.debt_equity;
+        if(row.debt_ebitda   != null) t.debtEbitda   = row.debt_ebitda;
+        if(row.int_cov       != null) t.intCov       = row.int_cov;
+        if(row.current_ratio != null) t.currentRatio = row.current_ratio;
+        if(row.quick_ratio   != null) t.quickRatio   = row.quick_ratio;
+        // Dividende
+        if(row.dy        != null) t.dy        = row.dy;
+        if(row.payout    != null) t.payout    = row.payout;
+        if(row.dividende != null) t.dividende = row.dividende;
+        if(row.piotroski != null) t.piotroski = row.piotroski;
+        // Croissance
+        if(row.growth_ca  != null) t.growthCA  = row.growth_ca;
+        if(row.growth_bpa != null) t.growthBpa = row.growth_bpa;
+        if(row.growth_rn  != null) t.growthRN  = row.growth_rn;
+        if(row.growth_div != null) t.growthDiv = row.growth_div;
+        // Par action
+        if(row.bpa != null) t.bpa = row.bpa;
+        if(row.vcp != null) t.vcp = row.vcp;
+        // Technique
+        if(row.beta     != null) t.beta    = row.beta;
+        if(row.altman_z != null) t.altmanZ = row.altman_z;
+        if(row.mm50     != null) t.mm50    = row.mm50;
+        if(row.mm200    != null) t.mm200   = row.mm200;
+        // Comptes
+        if(row.ca          != null) t.ca         = row.ca;
+        if(row.res_brut    != null) t.resBrut    = row.res_brut;
+        if(row.res_exp     != null) t.resExp     = row.res_exp;
+        if(row.ebitda      != null) t.ebitda     = row.ebitda;
+        if(row.rn          != null) t.rn         = row.rn;
+        if(row.treso       != null) t.treso      = row.treso;
+        if(row.dette       != null) t.dette      = row.dette;
+        if(row.cap_propres != null) t.capPropres = row.cap_propres;
+        if(row.ev          != null) t.ev         = row.ev;
+        if(row.cap_boursiere != null) t.cap      = row.cap_boursiere;
+        // Score & analyse
+        if(row.score      != null) t.score     = row.score;
+        if(row.fair_value != null) t.fairValue = row.fair_value;
+        if(row.reco       != null && row.reco !== '') t.reco = row.reco;
+        // Recalculer les dérivés
+        normalize(t);
+      });
+    });
+
+    console.log(`[BRVM] fetchFundamentals: ${rows.length} tickers chargés depuis Supabase`);
+  }catch(e){ console.warn("[BRVM] fetchFundamentals:", e); }
+}
+
 /* ============================================================
    TICKERS BRVM — 7 positions du portefeuille avec donnée
    complète (champs du bulletin), autres simplifiés.
@@ -5441,6 +5516,7 @@ initRealPrices();          // fetch asynchrone en arrière-plan
 fetchSupabaseLastUpdate(); // affiche la date de dernière MAJ Supabase
 fetchIndices();            // charge les indices BRVM live
 fetchCapStats();           // capitalisation et stats marché dynamiques
+fetchFundamentals();       // fondamentaux depuis brvm_fundamentals Supabase
 fetchNews();               // fil d'actualités depuis Supabase
 fetchEvents();             // calendrier événements depuis Supabase
 
