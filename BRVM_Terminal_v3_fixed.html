@@ -1556,8 +1556,7 @@ const INDICES = [
 
 async function fetchIndices(){
   try{
-    const codes = ["BRVM-C","BRVM-30","BRVM-PRES"];
-    const url = SUPABASE_URL+"/rest/v1/brvm_meta?ticker=in.("+codes.join(",")+")&select=ticker,last_close,last_updated";
+    const url = SUPABASE_URL+"/rest/v1/brvm_meta?ticker=like.BRVM-*&select=ticker,last_close,last_updated";
     const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
     if(!r.ok) return;
     const rows = await r.json();
