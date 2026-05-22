@@ -143,6 +143,65 @@ def scrape_indices():
             json=indrows, timeout=15)
         print("  Indices upsert: " + str(r.status_code))
 
+def scrape_news():
+    """Scrape les titres de news BRVM depuis Sika Finance RSS et BRVM officiel."""
+    import xml.etree.ElementTree as ET
+    now = datetime.now(timezone.utc).isoformat()
+    news_rows = []
+    seen = set()
+
+    sources = [
+        ("https://www.sikafinance.com/rss/actualites", "Sika Finance"),
+        ("https://www.agenceecofin.com/rss/toute-actualite", "AgenceEcofin"),
+    ]
+
+    for rss_url, source_name in sources:
+        try:
+            resp = requests.get(rss_url, timeout=15, headers={"User-Agent": USER_AGENT}, verify=False)
+            if resp.status_code != 200:
+                print(f"  RSS {source_name}: {resp.status_code}")
+                continue
+            root = ET.fromstring(resp.content)
+            items = root.findall(".//item")[:10]
+            for item in items:
+                title = item.findtext("title", "").strip()
+                pub = item.findtext("pubDate", now)
+                link = item.findtext("link", "")
+                if not title or title in seen:
+                    continue
+                seen.add(title)
+                # Détecter le ticker mentionné
+                ticker = "BRVM"
+                for tk in TICKERS_KNOWN:
+                    if tk in title.upper():
+                        ticker = tk
+                        break
+                news_rows.append({
+                    "published_at": now,
+                    "source": source_name,
+                    "ticker": ticker,
+                    "headline": title[:500],
+                    "url": link[:500],
+                })
+        except Exception as e:
+            print(f"  RSS {source_name} erreur: {e}")
+
+    if not news_rows:
+        print("  Aucune news récupérée")
+        return
+
+    # Upsert dans brvm_news
+    try:
+        resp = requests.post(
+            SUPABASE_URL + "/rest/v1/brvm_news",
+            headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
+            json=news_rows, timeout=15
+        )
+        print(f"  News upsert: {resp.status_code} — {len(news_rows)} articles")
+    except Exception as e:
+        print(f"  News upsert erreur: {e}")
+
+
 def upsert_prices(rows):
     if not rows:
         return 0
@@ -314,6 +373,8 @@ def main():
     # Mettre a jour les indices BRVM
     print("Mise a jour des indices BRVM...")
     scrape_indices()
+    print("Scraping news BRVM...")
+    scrape_news()
     print("Termine: " + datetime.now().strftime("%H:%M:%S UTC"))
     sys.exit(0 if inserted > 0 else 1)
 
