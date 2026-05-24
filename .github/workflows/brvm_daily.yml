@@ -1,16 +1,14 @@
 name: BRVM Daily Update
 
 on:
-  # Passage 1 : 18h30 UTC = 18h30 Abidjan – PDF généralement publié à cette heure
-  # Passage 2 : 23h30 UTC = 23h30 Abidjan – Filet de sécurité si PDF publié tard
   schedule:
-    - cron: "30 18 * * 1-5"   # lun-ven 18h30 UTC
-    - cron: "30 23 * * 1-5"   # lun-ven 23h30 UTC
+    - cron: "30 18 * * 1-5"
+    - cron: "30 23 * * 1-5"
 
   workflow_dispatch:
     inputs:
       date_override:
-        description: "Date à forcer (YYYY-MM-DD) — laisser vide pour aujourd'hui"
+        description: "Date a forcer (YYYY-MM-DD)"
         required: false
         default: ""
 
@@ -35,14 +33,24 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run BRVM updater
+        id: scraper
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           DATE_OVERRIDE: ${{ github.event.inputs.date_override }}
         run: python brvm_update.py
 
-      - name: Notify on failure
+      - name: Ouvrir une issue si echec
         if: failure()
-        run: |
-          echo "❌ BRVM update failed on $(date)"
-          echo "Check the logs above for details."
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const date = new Date().toISOString().slice(0, 10);
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Scraper BRVM echoue - ${date}`,
+              body: `Le scraper na pas pu recuperer les donnees du **${date}**.\n\n**Logs :** ${runUrl}\n\n> Relancer via Actions - BRVM Daily Update - Run workflow avec la date.`,
+              labels: ['bug']
+            });
