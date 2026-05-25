@@ -1844,7 +1844,14 @@ const TICKERS = [
   {s:"CIEC",  n:"CIE Côte d'Ivoire",         sec:"Services publics",cty:"Côte d'Ivoire",  p:1985,  v:-0.50, vol:2400,  cap:39700,   pe:13.5, pb:2.4, dy:5.5,  roe:18.0, roa:8.5, ev:48000,   eps: 147, debt:1.2},
   {s:"SDSC",  n:"Bolloré Transport CI",      sec:"Transport",       cty:"Côte d'Ivoire",  p:1295,  v: 1.97, vol:1840,  cap:25900,   pe:13.8, pb:2.0, dy:5.0,  roe:14.5, roa:8.2, ev:26000,   eps:  94, debt:0.6},
   {s:"BICB",  n:"BIC Bénin",                sec:"Finance",         cty:"Bénin",          p:4500,  v: 0.00, vol: 80,   cap:45000,   pe: 7.2, pb:1.1, dy:8.5,  roe:15.2, roa:1.1, ev:92000,   eps: 625, debt:5.9},
-  {s:"NSBC",  n:"NSIA Banque CI",            sec:"Finance",         cty:"Côte d'Ivoire",  p:15000, v: 0.00, vol:120,   cap:432000,  pe: 8.2, pb:1.1, dy:5.5,  roe:14.2, roa:1.2, ev:520000,  eps:1829, debt:5.8},
+  {s:"NSBC",  n:"NSIA Banque CI",            sec:"Finance",         cty:"Côte d'Ivoire",  p:15000, v: 0.00, vol:120,   cap:432000,  pe: 8.2, pb:1.1, dy:5.5,  roe:14.2, roa:1.2, ev:520000,  eps:1829, debt:5.8},,
+  // SCRC — Sucrivoire CI — données 2024/2025 (fetchFundamentals complète depuis Supabase)
+  {s:"SCRC", n:"Sucrivoire CI",         sec:"Agro-alim.",   cty:"Côte d'Ivoire", 
+   p:2465, v:0.00, vol:44608, cap:51842,
+   pe:20.0, pb:null, dy:0, roe:null, roa:null, 
+   bpa:132, ca:87219, rn:2591,
+   beta:1.37, growth_ca:28.01, marge_nette:2.97,
+   score:28, reco:"CONSERVER", fairValue:null}
 ];
 
 // NEWS — chargées depuis Supabase brvm_news (alimenté par scraper)
