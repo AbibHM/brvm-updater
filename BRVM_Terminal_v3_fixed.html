@@ -1354,8 +1354,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
       <!-- VAL — Valorisation 5 modèles -->
       <div class="sub-view" id="sv-val">
         <div class="val-weights">
-          <b>Méthodologie pondérée</b> · WACC = <b>12.0%</b> (prime risque marché UEMOA) · Rf = <b>6.0%</b> (Bons du Trésor UEMOA 10 ans)
-          <br><b>Pondération :</b> Graham Number <b>20%</b> · DCF Graham-Dodd <b>25%</b> · Résidu de Revenu Gordon <b>25%</b> · Capitalisation des Bénéfices <b>15%</b> · Comparables Sectoriels BRVM <b>15%</b>
+          <span id="valMethodNote">Chargement méthodologie…</span>
         </div>
         <div class="val-models">
           <table id="valTable"></table>
@@ -1495,7 +1494,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
     <span>USER : <b id="sbUser" style="color:var(--dim)">—</b></span>
     <span>SUPABASE MAJ : <b id="sbLastUpdate" style="color:var(--dim)">—</b></span>
     <span>DATA : <b id="sbData">—</b></span>
-    <span>WACC <b>12.0%</b></span>
+    <span>Ke <b id="sbWacc">—</b></span>
     <span>RF <b>6.0%</b></span>
   </div>
 </div>
@@ -2710,45 +2709,227 @@ let _curPeriod = "1Y";
 let _chartMode = 'line';   // 'line' | 'candle'
 let _ohlcData  = [];        // OHLC complet (période) pour crosshair/candlestick
 let _ohlcDates = [];        // dates associées
-const WACC = 12.0;   // % — coût des fonds propres BRVM
-const RF   = 6.0;    // % — taux sans risque UEMOA
-const G    = 4.0;    // % — croissance long terme
+// ═══════════════════════════════════════════════════════════════
+// MOTEUR DE VALORISATION v2 — WACC PAR PAYS/SECTEUR · RATIOS SECTORIELS
+// ═══════════════════════════════════════════════════════════════
+
+const RF_BASE = 6.0;   // Rf UEMOA — Bons du Trésor 10 ans
+const G_LT    = 4.0;   // Croissance long terme UEMOA
+
+// ── Prime de risque pays (au-dessus du Rf UEMOA) ─────────────
+const COUNTRY_RISK_PREMIUM = {
+  "Côte d'Ivoire" : 3.5,   // Pays phare BRVM, prime modérée
+  "Sénégal"       : 3.5,
+  "Burkina Faso"  : 5.5,   // Risque sécuritaire
+  "Mali"          : 6.0,   // Risque politique/sécuritaire
+  "Niger"         : 6.0,
+  "Bénin"         : 3.5,
+  "Togo"          : 4.0,
+  "Guinea-Bissau" : 5.0,
+  "default"       : 4.5,
+};
+
+// ── Prime sectorielle (spread sur le marché) ──────────────────
+const SECTOR_RISK_PREMIUM = {
+  "Finance"          : 1.5,   // Levier naturel, risque réglementaire
+  "Télécoms"         : 1.0,
+  "Agriculture"      : 2.0,   // Risque climatique/commodity
+  "Agro-alim."       : 1.5,
+  "Distribution"     : 1.5,
+  "Industrie"        : 2.0,
+  "Services publics" : 0.5,   // Revenus régulés, stable
+  "Transport"        : 2.0,
+  "default"          : 1.5,
+};
+
+// ── Beta par défaut si non disponible ────────────────────────
+const SECTOR_BETA = {
+  "Finance"          : 0.75,
+  "Télécoms"         : 0.65,
+  "Agriculture"      : 0.80,
+  "Agro-alim."       : 0.70,
+  "Distribution"     : 0.80,
+  "Industrie"        : 0.90,
+  "Services publics" : 0.50,
+  "Transport"        : 0.85,
+  "default"          : 0.75,
+};
+
+// ── Croissance à long terme par secteur ──────────────────────
+const SECTOR_GROWTH = {
+  "Finance"          : 5.0,
+  "Télécoms"         : 4.5,
+  "Agriculture"      : 4.0,
+  "Agro-alim."       : 3.5,
+  "Distribution"     : 3.5,
+  "Industrie"        : 3.0,
+  "Services publics" : 3.0,
+  "Transport"        : 3.5,
+  "default"          : 4.0,
+};
+
+// ── Calcul du WACC spécifique ticker ─────────────────────────
+function computeWACC(t){
+  const country = t.cty || "default";
+  const sector  = t.sec  || "default";
+  const crp = COUNTRY_RISK_PREMIUM[country]  ?? COUNTRY_RISK_PREMIUM["default"];
+  const srp = SECTOR_RISK_PREMIUM[sector]    ?? SECTOR_RISK_PREMIUM["default"];
+  const bDefault = SECTOR_BETA[sector]       ?? SECTOR_BETA["default"];
+  const beta = t.beta != null ? t.beta : bDefault;
+  const erp  = 5.0; // Prime de risque actions BRVM historique
+  const ke   = RF_BASE + beta * (erp + crp) + srp;
+  return { ke: Math.round(ke*10)/10, beta, crp, srp };
+}
+
+// ── Croissance sectorielle ────────────────────────────────────
+function sectorGrowth(sec){
+  return SECTOR_GROWTH[sec] ?? G_LT;
+}
+
+// ── Références prudentielles par secteur ─────────────────────
+// Chaque secteur a ses propres seuils "normal" vs "alerte"
+const SECTOR_THRESHOLDS = {
+  "Finance": {
+    // Banques — ratios bâlois / métriques bancaires
+    roa_ok: 1.0, roa_good: 1.5,          // ROA: 1%+ = ok, 1.5%+ = bon
+    roe_ok: 12,  roe_good: 18,
+    debt_eq_ok: 8, debt_eq_warn: 12,     // Levier bancaire normal 8-12x
+    debt_ebitda_ok: 99, debt_ebitda_warn: 99, // non applicable aux banques
+    int_cov_ok: 1.5, int_cov_warn: 1.2,  // NIM coverage, seuil bas
+    cr_ok: 1.0, cr_warn: 0.9,            // Ratio liquidité bancaire
+    qr_ok: 0.9, qr_warn: 0.7,
+    marge_nette_ok: 15, marge_nette_good: 25,
+    marge_op_ok: 20, marge_op_good: 30,
+    piotroski_ok: 5, piotroski_good: 7,   // Adapté aux banques
+    pe_cheap: 8, pe_fair: 12, pe_exp: 18,
+    pb_cheap: 0.8, pb_fair: 1.5, pb_exp: 2.5,
+    // Graham Number inadapté aux banques → exclure
+    useGraham: false,
+    // Pondérations modèles adaptées banques
+    weights: {residu: 40, capben: 25, comparables: 25, dcf: 10, graham: 0},
+  },
+  "Télécoms": {
+    roa_ok: 5, roa_good: 10,
+    roe_ok: 15, roe_good: 25,
+    debt_eq_ok: 1.5, debt_eq_warn: 3,
+    debt_ebitda_ok: 2.5, debt_ebitda_warn: 4,
+    int_cov_ok: 4, int_cov_warn: 2.5,
+    cr_ok: 1.0, cr_warn: 0.8,
+    qr_ok: 0.8, qr_warn: 0.5,
+    marge_nette_ok: 12, marge_nette_good: 20,
+    marge_op_ok: 20, marge_op_good: 35,
+    piotroski_ok: 6, piotroski_good: 7,
+    pe_cheap: 10, pe_fair: 16, pe_exp: 25,
+    pb_cheap: 1.5, pb_fair: 3, pb_exp: 5,
+    useGraham: true,
+    weights: {residu: 30, capben: 15, comparables: 20, dcf: 25, graham: 10},
+  },
+  "Agriculture": {
+    roa_ok: 5, roa_good: 10,
+    roe_ok: 12, roe_good: 20,
+    debt_eq_ok: 0.8, debt_eq_warn: 1.5,
+    debt_ebitda_ok: 2, debt_ebitda_warn: 3.5,
+    int_cov_ok: 4, int_cov_warn: 2.5,
+    cr_ok: 1.5, cr_warn: 1.0,
+    qr_ok: 1.0, qr_warn: 0.7,
+    marge_nette_ok: 10, marge_nette_good: 20,
+    marge_op_ok: 15, marge_op_good: 25,
+    piotroski_ok: 6, piotroski_good: 7,
+    pe_cheap: 7, pe_fair: 12, pe_exp: 18,
+    pb_cheap: 1.0, pb_fair: 2.0, pb_exp: 3.5,
+    useGraham: true,
+    weights: {residu: 25, capben: 15, comparables: 25, dcf: 25, graham: 10},
+  },
+  "default": {
+    roa_ok: 5, roa_good: 10,
+    roe_ok: 12, roe_good: 20,
+    debt_eq_ok: 0.5, debt_eq_warn: 1.0,
+    debt_ebitda_ok: 2.5, debt_ebitda_warn: 4,
+    int_cov_ok: 5, int_cov_warn: 3,
+    cr_ok: 1.5, cr_warn: 1.0,
+    qr_ok: 1.0, qr_warn: 0.7,
+    marge_nette_ok: 10, marge_nette_good: 15,
+    marge_op_ok: 15, marge_op_good: 25,
+    piotroski_ok: 6, piotroski_good: 7,
+    pe_cheap: 8, pe_fair: 15, pe_exp: 25,
+    pb_cheap: 1.0, pb_fair: 2.0, pb_exp: 3.5,
+    useGraham: true,
+    weights: {residu: 25, capben: 15, comparables: 20, dcf: 25, graham: 15},
+  },
+};
+
+function getSectorThresholds(sec){
+  return SECTOR_THRESHOLDS[sec] ?? SECTOR_THRESHOLDS["default"];
+}
 
 /* ── 5 modèles de valorisation ───────────────────────── */
-function valGraham(eps, vcp){ return Math.sqrt(22.5 * (eps||0) * (vcp||0)); }
+function valGraham(eps, vcp){ return Math.sqrt(22.5 * Math.max(0,eps||0) * Math.max(0,vcp||0)); }
 function valDCF(eps, g, rf){ return (eps||0) * (8.5 + 2*g) * (4.4/rf); }
 function valResidu(roe, g, ke, vcp){
   if((ke-g) <= 0) return 0;
-  return ((roe - g) / (ke - g)) * (vcp||0);
+  const mult = Math.max(0, Math.min(5, (roe - g) / (ke - g)));
+  return mult * (vcp||0);
 }
-function valCapBen(eps, kePct){ return (eps||0) / (kePct/100); }
+function valCapBen(eps, kePct){ return Math.max(0, (eps||0) / (kePct/100)); }
 function valComparables(peMed, pbMed, eps, vcp){ return ((peMed*(eps||0)) + (pbMed*(vcp||0))) / 2; }
 
-function computeValuation(t){
-  const eps = t.bpa || t.eps || 0;
-  const vcp = t.vcp || (t.capPropres ? (t.capPropres*1000/Math.max(1,(t.cap||1)/(t.p||1))) : t.p/2.0);
-  const roe = t.roe || 0;
-  const peMed = computeSectorMedian(t.sec, 'pe') || 12;
-  const pbMed = computeSectorMedian(t.sec, 'pb') || 2.5;
+// ── Valeur fondamentale P/B ajusté pour banques ──────────────
+function valBankPB(pb_juste, vcp){ return pb_juste * (vcp||0); }
 
-  const m1 = valGraham(eps, vcp);
-  const m2 = valDCF(eps, G, RF);
-  const m3 = valResidu(roe, G, WACC, vcp);
-  const m4 = valCapBen(eps, WACC);
+function computeValuation(t){
+  const eps  = t.bpa || t.eps || 0;
+  const vcp  = t.vcp || (t.capPropres && t.cap && t.p
+    ? (t.capPropres * 1e6 / Math.max(1, t.cap * 1e6 / (t.p||1)))
+    : t.p / 2.0);
+  const roe  = t.roe  || 0;
+  const sec  = t.sec  || "default";
+  const thr  = getSectorThresholds(sec);
+  const {ke, beta, crp, srp} = computeWACC(t);
+  const g    = sectorGrowth(sec);
+  const rf   = RF_BASE;
+
+  // Médianes sectorielles
+  const peMed = computeSectorMedian(sec, 'pe') || thr.pe_fair;
+  const pbMed = computeSectorMedian(sec, 'pb') || thr.pb_fair;
+
+  // Calcul modèles
+  const m1 = thr.useGraham ? valGraham(eps, vcp) : 0;
+  const m2 = valDCF(eps, g, rf);
+  const m3 = valResidu(roe, g, ke, vcp);
+  const m4 = valCapBen(eps, ke);
   const m5 = valComparables(peMed, pbMed, eps, vcp);
-  const pondere = 0.20*m1 + 0.25*m2 + 0.25*m3 + 0.15*m4 + 0.15*m5;
-  const up = (pondere - t.p) / t.p * 100;
+
+  // Pondérations sectorielles
+  const W = thr.weights;
+  const total_w = W.graham + W.dcf + W.residu + W.capben + W.comparables;
+  const pondere = (W.graham*m1 + W.dcf*m2 + W.residu*m3 + W.capben*m4 + W.comparables*m5) / total_w;
+  const up = t.p > 0 ? (pondere - t.p) / t.p * 100 : 0;
+
+  // Sensibilité WACC ±2%
+  const m3_low  = valResidu(roe, g, ke-2, vcp);
+  const m3_high = valResidu(roe, g, ke+2, vcp);
+  const pondere_low  = (W.graham*m1 + W.dcf*m2 + W.residu*m3_low  + W.capben*valCapBen(eps,ke-2) + W.comparables*m5) / total_w;
+  const pondere_high = (W.graham*m1 + W.dcf*m2 + W.residu*m3_high + W.capben*valCapBen(eps,ke+2) + W.comparables*m5) / total_w;
 
   return {
     models: [
-      {name:"Graham Number",            formula:"√(22.5 × BPA × VCP)",                                 val:m1, weight:20, hyp:`BPA=${fmt(eps)} F CFA · VCP=${fmt(vcp)} F CFA`},
-      {name:"DCF Simplifié (Graham-Dodd)", formula:"BPA × (8.5 + 2g) × (4.4/Rf)",                        val:m2, weight:25, hyp:`g=${G}% · Rf=${RF}% (UEMOA)`},
-      {name:"Résidu de Revenu (Gordon)", formula:"(ROE − g) / (Ke − g) × VCP",                          val:m3, weight:25, hyp:`ROE=${fmt2(roe)}% · Ke=${WACC}% · g=${G}% · P/B just.=${fmt2(m3/vcp)}x`},
-      {name:"Capitalisation des Bénéfices", formula:"BPA / Ke",                                          val:m4, weight:15, hyp:`BPA=${fmt(eps)} F CFA · Ke=${WACC}% (WACC BRVM)`},
-      {name:"Comparables Sectoriels BRVM", formula:"(P/E med × BPA + P/B med × VCP) / 2",                val:m5, weight:15, hyp:`P/E med.=${fmt2(peMed)}x · P/B med.=${fmt2(pbMed)}x · ${t.sec}`},
+      {name:"Graham Number",              formula:"√(22.5 × BPA × VCP)",         val:m1, weight:W.graham,
+       hyp:`BPA=${fmt(eps)} F · VCP=${fmt(vcp)} F`,
+       note: thr.useGraham ? "" : "⚠ Non applicable au secteur Finance"},
+      {name:"DCF Graham-Dodd",            formula:"BPA × (8.5 + 2g) × (4.4/Rf)", val:m2, weight:W.dcf,
+       hyp:`g=${g}% (secteur ${sec}) · Rf=${rf}% (UEMOA)`},
+      {name:"Résidu de Revenu (Gordon)",  formula:"(ROE − g) / (Ke − g) × VCP",  val:m3, weight:W.residu,
+       hyp:`ROE=${fmt2(roe)}% · Ke=${ke}% · g=${g}% · P/B just.=${fmt2(vcp>0?m3/vcp:0)}x`},
+      {name:"Capitalisation Bénéfices",   formula:"BPA / Ke",                     val:m4, weight:W.capben,
+       hyp:`BPA=${fmt(eps)} F · Ke=${ke}% (CAPM ${t.cty||""} + prime ${sec})`},
+      {name:"Comparables Sectoriels",     formula:"(P/E med × BPA + P/B med × VCP) / 2", val:m5, weight:W.comparables,
+       hyp:`P/E méd.=${fmt2(peMed)}x · P/B méd.=${fmt2(pbMed)}x · ${sec}`},
     ],
     pondere, upside: up,
-    sectorMedians: {peMed, pbMed}
+    wacc: ke, beta, crp, srp, g, rf,
+    sensitivity: {low: pondere_low, high: pondere_high},
+    sectorMedians: {peMed, pbMed},
+    thresholds: thr,
   };
 }
 
@@ -2759,80 +2940,178 @@ function computeSectorMedian(sec, field){
   return arr.length%2 ? arr[m] : (arr[m-1]+arr[m])/2;
 }
 
-/* ── 5 dimensions de risque (0-10, 10 = max) ─────────── */
+/* ── 5 dimensions de risque — seuils sectoriels (0-10, 10 = risque max) ── */
 function computeRiskScorecard(t){
-  // Crédit (Dette/Cap, Dette/EBITDA, Couv. intérêts)
+  const thr  = getSectorThresholds(t.sec || "default");
+  const {ke} = computeWACC(t);
+  const sec  = t.sec || "default";
+  const isBank = sec === "Finance";
+
+  // ── CRÉDIT ────────────────────────────────────────────────
   let credit = 0;
-  if((t.debtEquity||t.debt||0) > 1.0) credit += 4; else if((t.debtEquity||t.debt||0) > 0.5) credit += 2; else credit += 0.5;
-  if((t.debtEbitda||0) > 4) credit += 4; else if((t.debtEbitda||0) > 2) credit += 2; else credit += 0.5;
-  if((t.intCov||10) < 3) credit += 2; else if((t.intCov||10) < 6) credit += 1;
+  if(isBank){
+    // Banques : Tier 1 / ROA / couverture NIM
+    const roa = t.roa || 0;
+    if(roa < thr.roa_ok)       credit += 4;
+    else if(roa < thr.roa_good) credit += 2;
+    else credit += 0.5;
+    const ic = t.intCov || 2;
+    if(ic < thr.int_cov_warn)  credit += 3;
+    else if(ic < thr.int_cov_ok) credit += 1.5;
+    else credit += 0.5;
+    // Levier bancaire (Dette/Cap.Propres)
+    const lev = t.debtEquity || t.debt || 0;
+    if(lev > thr.debt_eq_warn)  credit += 3;
+    else if(lev > thr.debt_eq_ok) credit += 1.5;
+    else credit += 0.5;
+  } else {
+    const de = t.debtEquity || t.debt || 0;
+    if(de > thr.debt_eq_warn)  credit += 4;
+    else if(de > thr.debt_eq_ok) credit += 2;
+    else credit += 0.5;
+    const dei = t.debtEbitda || 0;
+    if(dei > thr.debt_ebitda_warn) credit += 4;
+    else if(dei > thr.debt_ebitda_ok) credit += 2;
+    else credit += 0.5;
+    const ic = t.intCov || 10;
+    if(ic < thr.int_cov_warn)  credit += 2;
+    else if(ic < thr.int_cov_ok) credit += 1;
+  }
   credit = Math.min(10, credit);
 
-  // Liquidité (CR, QR)
+  // ── LIQUIDITÉ ─────────────────────────────────────────────
   let liq = 0;
-  const cr = t.currentRatio || 1.5;
-  const qr = t.quickRatio || 1.0;
-  if(cr < 1.0) liq += 4; else if(cr < 1.5) liq += 2.5; else liq += 1;
-  if(qr < 0.5) liq += 3; else if(qr < 1.0) liq += 2; else liq += 0.5;
+  const cr = t.currentRatio || (isBank ? 1.0 : 1.5);
+  const qr = t.quickRatio   || (isBank ? 0.9 : 1.0);
+  if(cr < thr.cr_warn)    liq += 4;
+  else if(cr < thr.cr_ok) liq += 2;
+  else liq += 0.5;
+  if(qr < thr.qr_warn)    liq += 3;
+  else if(qr < thr.qr_ok) liq += 1.5;
+  else liq += 0.5;
   liq = Math.min(10, liq);
 
-  // Valorisation (P/E, upside)
+  // ── VALORISATION ──────────────────────────────────────────
   let val = 0;
-  if((t.pe||15) > 25) val += 4; else if((t.pe||15) > 15) val += 2; else val += 0.5;
+  const pe = t.pe || 0;
+  if(pe > 0){
+    if(pe > thr.pe_exp)       val += 4;
+    else if(pe > thr.pe_fair) val += 2;
+    else if(pe > thr.pe_cheap) val += 1;
+    else val += 0.5;
+  }
   const up = t.upside ?? 0;
-  if(up < -20) val += 4; else if(up < 0) val += 2; else if(up < 10) val += 1;
+  if(up < -30) val += 4; else if(up < -10) val += 2; else if(up < 5) val += 1;
   val = Math.min(10, val);
 
-  // Opérationnel (marges, ROE, ROIC)
+  // ── OPÉRATIONNEL ──────────────────────────────────────────
   let op = 0;
-  if((t.margeNette||10) < 5) op += 3; else if((t.margeNette||10) < 10) op += 1.5;
-  if((t.roe||15) < 8) op += 3; else if((t.roe||15) < 15) op += 1.5;
-  if((t.roic||t.roe||10) < 8) op += 2; else if((t.roic||t.roe||10) < 15) op += 1;
+  const mn = t.margeNette || 0;
+  if(mn < thr.marge_nette_ok)    op += 3;
+  else if(mn < thr.marge_nette_good) op += 1;
+  const roe = t.roe || 0;
+  if(roe < thr.roe_ok)            op += 3;
+  else if(roe < thr.roe_good)     op += 1;
+  const roic = t.roic || roe;
+  if(roic < thr.roe_ok)           op += 2;
+  else if(roic < thr.roe_good)    op += 1;
   op = Math.min(10, op);
 
-  // Marché (volatilité, beta)
+  // ── MARCHÉ ────────────────────────────────────────────────
   let mkt = 0;
-  const beta = t.beta != null ? t.beta : 0.5;
-  if(beta > 1.2) mkt += 3; else if(beta > 0.8) mkt += 1.5; else mkt += 0.5;
-  const var52 = Math.abs(t.var52||0);
-  if(var52 > 30) mkt += 4; else if(var52 > 15) mkt += 2;
+  const beta = t.beta != null ? t.beta : 0.75;
+  if(beta > 1.2)      mkt += 3;
+  else if(beta > 0.9) mkt += 1.5;
+  else mkt += 0.5;
+  const var52 = Math.abs(t.var52 || 0);
+  if(var52 > 50) mkt += 4; else if(var52 > 25) mkt += 2; else if(var52 > 10) mkt += 1;
+  // Illiquidité (vol moyen faible = risque exécution)
+  const vol20 = t.vol20 || 0;
+  if(vol20 < 50) mkt += 2; else if(vol20 < 200) mkt += 1;
   mkt = Math.min(10, mkt);
 
   const composite = 0.30*credit + 0.20*liq + 0.20*val + 0.20*op + 0.10*mkt;
-  return {credit, liq, val, op, mkt, composite};
+  return {credit, liq, val, op, mkt, composite, ke, isBank};
 }
 
-/* ── Forces / Vigilance / Risques ──────────────────────── */
+/* ── Forces / Vigilance / Risques — références sectorielles ── */
 function computeFVR(t){
   const f=[], v=[], r=[];
-  // Forces
-  if((t.pe||99) < 15)         f.push(`P/E attractif à ${fmt2(t.pe)}x (sous la moyenne marché)`);
-  if((t.evEbitda||99) < 5)    f.push(`EV/EBITDA faible à ${fmt2(t.evEbitda)}x, multiple de rachat intéressant`);
-  if((t.roe||0) > 15)         f.push(`ROE solide à ${fmt2(t.roe)}% — génération de valeur actionnariale élevée`);
-  if((t.roic||0) > 15)        f.push(`ROIC de ${fmt2(t.roic)}% — le capital est efficacement alloué`);
-  if((t.margeNette||0) > 10)  f.push(`Marge nette excellente à ${fmt2(t.margeNette)}%`);
-  if((t.margeOp||0) > 25)     f.push(`Marge opérationnelle forte à ${fmt2(t.margeOp)}%`);
-  if((t.margeBrute||0) > 50)  f.push(`Marge brute de ${fmt2(t.margeBrute)}% — fort pouvoir de tarification`);
-  if((t.piotroski||0) >= 7)   f.push(`Piotroski F-Score de ${t.piotroski}/9 — santé financière excellente`);
-  if((t.debtEquity||t.debt||99) < 0.5) f.push(`Bilan sain : Dette/Equity de ${fmt2(t.debtEquity||t.debt)}x`);
-  if((t.intCov||0) > 5)       f.push(`Couverture des intérêts rassurante à ${fmt2(t.intCov)}x`);
-  if((t.dy||0) > 6)           f.push(`Rendement dividende attrayant : ${fmt2(t.dy)}%`);
-  if((t.upside||0) > 15)      f.push(`Valorisation attractive : SOUS-ÉVALUÉ — Juste valeur ${fmt(t.fairValue)} F CFA (upside ${pct(t.upside)})`);
+  const thr   = getSectorThresholds(t.sec || "default");
+  const isBank = (t.sec||"") === "Finance";
+  const {ke}  = computeWACC(t);
+  const up    = t.upside ?? 0;
 
-  // Vigilance
-  if((t.pe||0) >= 15 && (t.pe||0) <= 25) v.push(`P/E à ${fmt2(t.pe)}x — au-dessus de la moyenne marché, à surveiller`);
-  if((t.debtEbitda||0) > 2 && (t.debtEbitda||0) < 4) v.push(`Dette/EBITDA à ${fmt2(t.debtEbitda)}x — endettement modéré à surveiller`);
-  if((t.quickRatio||99) < 0.8) v.push(`Quick Ratio faible à ${fmt2(t.quickRatio)} — tension de trésorerie possible`);
-  if((t.margeNette||99) < 5)  v.push(`Marge nette faible à ${fmt2(t.margeNette)}% — pression sur la rentabilité`);
-  if((t.payout||0) > 90)      v.push(`Taux de distribution élevé à ${fmt2(t.payout)}% — soutenabilité du dividende à vérifier`);
+  // ── FORCES ────────────────────────────────────────────────
+  // Valorisation
+  if(t.pe && t.pe > 0 && t.pe < thr.pe_cheap)
+    f.push(`P/E attractif à ${fmt2(t.pe)}x — sous la médiane sectorielle (${fmt2(thr.pe_fair)}x)`);
+  if(t.pb && t.pb < thr.pb_cheap)
+    f.push(`P/B de ${fmt2(t.pb)}x — décote sur les actifs nets (seuil secteur : ${thr.pb_fair}x)`);
+  if(t.evEbitda && t.evEbitda < 6 && !isBank)
+    f.push(`EV/EBITDA faible à ${fmt2(t.evEbitda)}x — potentiel multiple de rachat`);
+  // Rentabilité
+  if((t.roe||0) >= thr.roe_good)
+    f.push(`ROE de ${fmt2(t.roe)}% — génération de valeur actionnariale supérieure à la médiane secteur (seuil : ${thr.roe_good}%)`);
+  if((t.roic||0) >= thr.roe_good)
+    f.push(`ROIC de ${fmt2(t.roic)}% — allocation du capital efficace`);
+  if(isBank && (t.roa||0) >= thr.roa_good)
+    f.push(`ROA bancaire de ${fmt2(t.roa)}% — rentabilité des actifs solide (seuil secteur : ${thr.roa_good}%)`);
+  // Marges
+  if((t.margeNette||0) >= thr.marge_nette_good)
+    f.push(`Marge nette de ${fmt2(t.margeNette)}% — supérieure au seuil secteur (${thr.marge_nette_good}%)`);
+  if((t.margeOp||0) >= thr.marge_op_good)
+    f.push(`Marge opérationnelle de ${fmt2(t.margeOp)}% — levier opérationnel fort`);
+  if((t.margeBrute||0) >= 40 && !isBank)
+    f.push(`Marge brute de ${fmt2(t.margeBrute)}% — fort pouvoir de tarification`);
+  // Bilan
+  if(!isBank && t.debtEquity && t.debtEquity < thr.debt_eq_ok*0.5)
+    f.push(`Bilan conservateur : Dette/Equity de ${fmt2(t.debtEquity)}x`);
+  if(!isBank && t.intCov && t.intCov > thr.int_cov_ok*1.5)
+    f.push(`Couverture intérêts de ${fmt2(t.intCov)}x — confort financier élevé`);
+  // Dividende
+  if((t.dy||0) >= 6)
+    f.push(`Rendement dividende de ${fmt2(t.dy)}% — attractif dans le contexte UEMOA (Rf=${RF_BASE}%)`);
+  // Score Piotroski (adapté secteur)
+  if((t.piotroski||0) >= thr.piotroski_good)
+    f.push(`Piotroski F-Score de ${t.piotroski}/9 — santé financière robuste`);
+  // Valorisation relative
+  if(up > 20)
+    f.push(`SOUS-ÉVALUÉ : upside de ${pct(up)} vs juste valeur ${fmt(t.fairValue)} F CFA (Ke=${fmt2(ke)}%)`);
 
-  // Risques
-  if((t.pe||0) > 25)            r.push(`P/E très élevé à ${fmt2(t.pe)}x — risque de sur-valorisation`);
-  if((t.debtEbitda||0) > 4)     r.push(`Dette/EBITDA critique à ${fmt2(t.debtEbitda)}x — risque de solvabilité`);
-  if((t.intCov||99) < 3)        r.push(`Couverture intérêts faible à ${fmt2(t.intCov)}x — risque de défaut`);
-  if((t.currentRatio||99) < 1)  r.push(`Current Ratio < 1 (${fmt2(t.currentRatio)}) — risque de liquidité immédiat`);
-  if((t.upside||0) < -15)       r.push(`Valorisation excessive : SUR-ÉVALUÉ — Juste valeur ${fmt(t.fairValue)} F CFA (downside ${pct(t.upside)})`);
-  if((t.piotroski||9) < 3)      r.push(`Piotroski F-Score faible (${t.piotroski}/9) — santé financière fragile`);
+  // ── VIGILANCE ─────────────────────────────────────────────
+  if(t.pe && t.pe >= thr.pe_fair && t.pe < thr.pe_exp)
+    v.push(`P/E à ${fmt2(t.pe)}x — dans la zone de pleine valeur (seuil cher : ${thr.pe_exp}x)`);
+  if(!isBank && t.debtEbitda && t.debtEbitda > thr.debt_ebitda_ok && t.debtEbitda < thr.debt_ebitda_warn)
+    v.push(`Dette/EBITDA à ${fmt2(t.debtEbitda)}x — endettement à surveiller (seuil alerte : ${thr.debt_ebitda_warn}x)`);
+  if(t.quickRatio && t.quickRatio < thr.qr_ok && t.quickRatio >= thr.qr_warn)
+    v.push(`Quick Ratio à ${fmt2(t.quickRatio)} — tension de liquidité possible`);
+  if(t.payout && t.payout > 80)
+    v.push(`Taux de distribution élevé à ${fmt2(t.payout)}% — soutenabilité du dividende à vérifier`);
+  if(up > -15 && up < 0)
+    v.push(`Légèrement surévalué : downside limité de ${pct(up)} vs juste valeur ${fmt(t.fairValue)} F CFA`);
+  if((t.vol20||0) < 50)
+    v.push(`Titre quasi-illiquide (vol. moyen 20J : ${t.vol20||0}) — exécution difficile sans impact de marché`);
+  if(isBank && t.debtEquity && t.debtEquity > thr.debt_eq_ok && t.debtEquity < thr.debt_eq_warn)
+    v.push(`Levier bancaire à ${fmt2(t.debtEquity)}x — dans la norme mais à monitorer`);
+
+  // ── RISQUES ───────────────────────────────────────────────
+  if(t.pe && t.pe >= thr.pe_exp)
+    r.push(`P/E à ${fmt2(t.pe)}x — zone de sur-valorisation significative (seuil secteur : ${thr.pe_exp}x)`);
+  if(!isBank && t.debtEbitda && t.debtEbitda >= thr.debt_ebitda_warn)
+    r.push(`Dette/EBITDA critique à ${fmt2(t.debtEbitda)}x — risque de solvabilité (seuil secteur : ${thr.debt_ebitda_warn}x)`);
+  if(!isBank && t.intCov && t.intCov < thr.int_cov_warn)
+    r.push(`Couverture intérêts insuffisante à ${fmt2(t.intCov)}x (seuil secteur : ${thr.int_cov_ok}x)`);
+  if(t.currentRatio && t.currentRatio < thr.cr_warn)
+    r.push(`Liquidité dégradée : Current Ratio à ${fmt2(t.currentRatio)} (seuil secteur : ${thr.cr_ok}x)`);
+  if(up < -25)
+    r.push(`SURÉVALUÉ : downside de ${pct(up)} vs juste valeur ${fmt(t.fairValue)} F CFA (Ke=${fmt2(ke)}%)`);
+  if(t.piotroski && t.piotroski < 4)
+    r.push(`Piotroski F-Score faible à ${t.piotroski}/9 — signaux de détresse financière`);
+  if(isBank && t.roa && t.roa < thr.roa_ok*0.5)
+    r.push(`ROA bancaire très faible à ${fmt2(t.roa)}% — rentabilité des actifs insuffisante`);
+  if((t.vol20||0) < 20 && up < -10)
+    r.push(`Illiquidité critique (vol. 20J=${t.vol20||0}) conjuguée à une surévaluation — sortie impossible sans destruction de valeur`);
 
   return {forces:f, vigil:v, risq:r};
 }
@@ -2858,6 +3137,23 @@ async function renderCharts(){
   const val = computeValuation(t);
   const cible = t.fairValue != null ? t.fairValue : Math.round(val.pondere);
   const upside = t.upside != null ? t.upside : ((cible - t.p)/t.p*100);
+
+  // Mettre à jour la note méthodologique avec les paramètres spécifiques au ticker
+  const _w = val.thresholds.weights;
+  const _twTotal = _w.graham + _w.dcf + _w.residu + _w.capben + _w.comparables;
+  const _sbWacc = $("sbWacc");
+  if(_sbWacc) _sbWacc.textContent = fmt2(val.wacc) + "%";
+  const _noteEl = $("valMethodNote");
+  if(_noteEl) _noteEl.innerHTML = `
+    <b>Ke (CAPM) = ${fmt2(val.wacc)}%</b> · β=${fmt2(val.beta)} · Rf=${val.rf}% (UEMOA) · Prime pays <b>${val.crp}%</b> (${t.cty||'—'}) · Prime secteur <b>${val.srp}%</b> (${t.sec||'—'}) · g=${val.g}%
+    <br><b>Pondérations ${t.sec||''} :</b>
+    Graham <b>${Math.round(_w.graham/_twTotal*100)}%</b> ·
+    DCF <b>${Math.round(_w.dcf/_twTotal*100)}%</b> ·
+    Résidu Gordon <b>${Math.round(_w.residu/_twTotal*100)}%</b> ·
+    Cap. Bénéfices <b>${Math.round(_w.capben/_twTotal*100)}%</b> ·
+    Comparables <b>${Math.round(_w.comparables/_twTotal*100)}%</b>
+    <br><i style="color:var(--dim)">Sensibilité Ke±2% : [${fmt(Math.round(val.sensitivity.low))} — ${fmt(Math.round(val.sensitivity.high))} F CFA]</i>
+  `;
 
   // Ticker strip (KPIs)
   $("tickerStrip").innerHTML = `
