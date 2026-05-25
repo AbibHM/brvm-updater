@@ -6061,16 +6061,36 @@ async function _authLogin(){
   const btn   = document.getElementById('authSubmitBtn');
   if(!email || !pwd){ _authSetErr('Email et mot de passe requis'); return; }
   _authSetLoading(btn, true); _authSetErr('');
-  const { data, error } = await _sbClient.auth.signInWithPassword({ email, password: pwd });
-  _authSetLoading(btn, false);
-  if(error){ _authSetErr('❌ ' + error.message); return; }
-  _authUpdateUI(data.user);
-  hideAuthModal();
-  toast('✓ Connecté · ' + data.user.email);
-  // Remettre la vue courante correctement
-  showView(_curView || 'markets');
-  // Recharger le portfolio depuis Supabase avec le vrai user_id
-  await _bootLoadPortfolioAuth();
+  try {
+    // Bypass du client JS (problème de double instance GoTrueClient)
+    // On utilise directement l'API REST Supabase Auth
+    const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password: pwd })
+    });
+    const d = await r.json();
+    _authSetLoading(btn, false);
+    if(!r.ok || d.error) {
+      _authSetErr('❌ ' + (d.error_description || d.error || 'Erreur de connexion'));
+      return;
+    }
+    // Stocker la session manuellement
+    const user = d.user;
+    window._authToken = d.access_token;
+    window._authRefresh = d.refresh_token;
+    _authUpdateUI(user);
+    hideAuthModal();
+    toast('✓ Connecté · ' + user.email);
+    showView(_curView || 'markets');
+    await _bootLoadPortfolioAuth();
+  } catch(e) {
+    _authSetLoading(btn, false);
+    _authSetErr('❌ Erreur réseau : ' + e.message);
+  }
 }
 
 /* ── Register ─────────────────────────────────────────────── */
