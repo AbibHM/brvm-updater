@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>BRVM TERMINAL v3 — Bloomberg-style Shell</title>
-<meta name="viewport" content="width=1440">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
 <style>
 /* ============================================================
    BRVM TERMINAL v2 — Bloomberg-inspired stylesheet
@@ -916,6 +916,204 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
   background:var(--green);box-shadow:0 0 6px var(--green);
 }
 
+
+/* ============================================================
+   RESPONSIVE MOBILE — Android / iPhone
+   ============================================================ */
+
+/* ── Breakpoint mobile : < 768px ─────────────────────────── */
+@media (max-width: 768px) {
+
+  /* ── Variables taille ── */
+  :root { font-size: 12px; }
+
+  /* ── Topbar ── */
+  .topbar {
+    grid-template-columns: auto 1fr auto !important;
+    padding: 0 6px !important;
+    height: 40px !important;
+    gap: 4px !important;
+  }
+  .topbar-logo { font-size: 11px !important; letter-spacing: 1px !important; }
+  .topbar-cmd  { display: none !important; }      /* Cacher la barre de commande */
+  .topbar-actions { gap: 2px !important; }
+  /* Cacher les boutons non essentiels */
+  .topbar-actions .btn:not(#autoRefBtn):not(#logoutBtn):not(#loginBtn) { display: none !important; }
+
+  /* ── F-tabs → scroll horizontal ── */
+  .ftabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    height: 36px !important;
+    gap: 0 !important;
+  }
+  .ftabs::-webkit-scrollbar { display: none; }
+  .ftab {
+    flex: 0 0 auto !important;
+    font-size: 10px !important;
+    padding: 0 10px !important;
+    white-space: nowrap !important;
+  }
+  .ftab .fkey { display: none !important; }       /* Cacher "F1" etc */
+
+  /* ── Statusbar ── */
+  .statusbar {
+    font-size: 9px !important;
+    padding: 0 6px !important;
+    height: 18px !important;
+  }
+  .statusbar .sb-left { gap: 6px !important; }
+  .statusbar .sb-right { gap: 6px !important; }
+  /* Cacher certains éléments status bar */
+  #sbCmd, #sbLastUpdate { display: none !important; }
+
+  /* ── Viewport ── */
+  .viewport {
+    height: calc(100dvh - 40px - 36px - 18px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  /* ── MARKETS — 1 colonne ── */
+  #view-markets {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    gap: 1px !important;
+  }
+  #view-markets .panel.span2 { grid-column: 1 !important; }
+  #view-markets .panel { min-height: 120px; }
+  .heat { grid-template-columns: repeat(4, 1fr) !important; }
+
+  /* ── Ticker tape — plus petit ── */
+  #tape .tape-item { font-size: 10px !important; padding: 0 8px !important; }
+
+  /* ── PORTFOLIO — 1 colonne ── */
+  #view-portfolio {
+    grid-template-columns: 1fr !important;
+  }
+  #view-portfolio .panel.full-w { grid-column: 1 !important; }
+  .pf-sum-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* ── SCREENER — 1 colonne, filtres en haut ── */
+  #view-screener {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto 1fr !important;
+  }
+  .scr-sidebar { max-height: 200px; overflow-y: auto; }
+
+  /* ── NEWS — 1 colonne ── */
+  #view-news { grid-template-columns: 1fr !important; }
+
+  /* ── CHARTS / Analyse ── */
+  #view-charts {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+  }
+  /* Ticker strip → vertical compact */
+  .ticker-strip {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1px !important;
+    font-size: 10px !important;
+  }
+  .t-name  { font-size: 16px !important; }
+  .t-price { font-size: 22px !important; }
+
+  /* Subtabs → scroll horizontal */
+  .subtabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .subtabs::-webkit-scrollbar { display: none; }
+  .subtab { flex: 0 0 auto !important; font-size: 9px !important; padding: 0 8px !important; }
+  .subtab span { display: none !important; }       /* Cacher les sous-titres */
+
+  /* Fund grid → 1 ou 2 colonnes */
+  .fund-grid { grid-template-columns: 1fr 1fr !important; }
+  .fund-col  { padding: 6px 8px !important; }
+
+  /* Val table → scroll horizontal */
+  #sv-val { overflow-x: auto !important; }
+  #valTable { min-width: 520px; font-size: 9px !important; }
+
+  /* Risk grid → 1 colonne */
+  .risk-grid { grid-template-columns: 1fr !important; }
+
+  /* Peers table → scroll */
+  #sv-peers { overflow-x: auto !important; }
+  #peersTable { min-width: 600px; font-size: 9px !important; }
+
+  /* Bulletin → 1 colonne */
+  .bulletin { padding: 12px !important; }
+  .bull-3col { grid-template-columns: 1fr !important; }
+  .bull-val-tbl { font-size: 9px !important; }
+
+  /* ── HEATMAP — grille réduite ── */
+  #view-heatmap .heat { grid-template-columns: repeat(3, 1fr) !important; }
+
+  /* ── Modals ── */
+  .modal {
+    min-width: unset !important;
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+  #authModal .modal { width: 92vw !important; }
+
+  /* ── Bouton exporter PDF ── */
+  .bull-actions { flex-wrap: wrap !important; gap: 6px !important; }
+
+  /* ── Touch target minimum 44px ── */
+  .subtab, .ftab, .btn, button { min-height: 36px; }
+  .topbar-actions .btn { min-height: 32px; font-size: 9px !important; padding: 0 6px !important; }
+}
+
+/* ── Breakpoint tablette : 768px – 1024px ─────────────────── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  #view-markets { grid-template-columns: 1fr 1fr !important; }
+  #view-markets .panel.span2 { grid-column: span 2 !important; }
+  #view-charts  { grid-template-columns: 220px 1fr !important; }
+  #view-portfolio { grid-template-columns: 1fr !important; }
+  .fund-grid { grid-template-columns: 1fr 1fr !important; }
+  .heat { grid-template-columns: repeat(5, 1fr) !important; }
+}
+
+/* ── Entrées tactiles — agrandir les inputs ── */
+@media (hover: none) and (pointer: coarse) {
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
+    font-size: 16px !important;   /* Évite le zoom auto iOS sur focus */
+    height: 44px !important;
+    padding: 0 12px !important;
+  }
+  select { height: 44px !important; font-size: 16px !important; }
+}
+
+/* ── Barre de commande mobile — remplacée par un bouton recherche ── */
+@media (max-width: 768px) {
+  /* Commande rapide via un bouton flottant */
+  #mobileSearchBtn {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 16px !important;
+    width: 52px !important; height: 52px !important;
+    border-radius: 50% !important;
+    background: var(--orange) !important;
+    color: #000 !important;
+    font-size: 22px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 999 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
+}
+#mobileSearchBtn { display: none; }   /* Caché sur desktop */
 </style>
   <!-- Supabase Auth SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -3843,6 +4041,9 @@ function exportBulletin(){
   <script>
     window.onload = function(){ window.print(); }
   <\/script>
+
+<!-- Bouton recherche mobile flottant -->
+<button id="mobileSearchBtn" onclick="showMobileSearch()" title="Rechercher un ticker">🔍</button>
 </body>
 </html>`);
   popup.document.close();
@@ -6280,6 +6481,17 @@ document.getElementById('authModal').addEventListener('click', e => {
 });
 
 
+// ── Recherche mobile ──────────────────────────────────────
+function showMobileSearch(){
+  const q = prompt("Ticker (ex: NSBC GO, SCRC GO) :");
+  if(q && q.trim()){
+    const parts = q.trim().toUpperCase().split(/\s+/);
+    const ticker = parts[0];
+    const cmd    = parts[1] || 'GO';
+    if(cmd === 'GO' || cmd === '') openTicker(ticker);
+  }
+}
+
 // ── Logout ────────────────────────────────────────────────
 async function doLogout(){
   try {
@@ -6311,6 +6523,7 @@ window.tkFind              = tkFind;
 window.fetchTickers        = fetchTickers;
 window.fetchFundamentals   = fetchFundamentals;
 window.doLogout            = doLogout;
+window.showMobileSearch    = showMobileSearch;
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════╗ -->
@@ -6466,5 +6679,8 @@ window.doLogout            = doLogout;
   </div>
 </div>
 
+
+<!-- Bouton recherche mobile flottant -->
+<button id="mobileSearchBtn" onclick="showMobileSearch()" title="Rechercher un ticker">🔍</button>
 </body>
 </html>
