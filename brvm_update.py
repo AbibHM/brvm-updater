@@ -144,62 +144,226 @@ def scrape_indices():
         print("  Indices upsert: " + str(r.status_code))
 
 def scrape_news():
-    """Scrape les titres de news BRVM depuis Sika Finance RSS et BRVM officiel."""
+    """
+    Scrape les actualités officielles BRVM :
+    1. Ticker tape BRVM (annonces dividendes, AGO/AGE depuis la page principale)
+    2. Avis et publications brvm.org
+    3. RSS AgenceEcofin (fallback, sans dépendance Sika Finance)
+    """
     import xml.etree.ElementTree as ET
+    import hashlib
     now = datetime.now(timezone.utc).isoformat()
     news_rows = []
-    seen = set()
+    seen_hashes = set()
 
-    sources = [
-        ("https://www.sikafinance.com/rss/actualites", "Sika Finance"),
+    def add_news(headline, source, ticker="BRVM", url="", pub_date=None):
+        h = hashlib.md5(headline.encode()).hexdigest()
+        if h in seen_hashes:
+            return
+        seen_hashes.add(h)
+        news_rows.append({
+            "published_at": pub_date or now,
+            "source": source,
+            "ticker": ticker,
+            "headline": headline[:500],
+            "url": url[:500],
+                    })
+
+    headers_web = {"User-Agent": USER_AGENT, "Accept-Language": "fr-FR,fr;q=0.9"}
+
+    # ── 1. Ticker tape BRVM — annonces dividendes + avis ─────────
+    try:
+        resp = requests.get("https://www.brvm.org/fr", headers=headers_web, timeout=20, verify=False)
+        if resp.status_code == 200 and len(resp.text) > 500:
+            text = resp.text
+            # Le ticker tape contient des annonces dividendes
+            tape_items = re.findall(
+                r'([A-Z]{2,6})\s*:\s*([^|<]{20,200}?)(?:\||<)',
+                text, re.IGNORECASE
+            )
+            for ticker_found, message in tape_items:
+                t = ticker_found.upper()
+                if t in TICKERS_KNOWN:
+                    add_news(f"{t} : {message.strip()}", "BRVM Officiel", t)
+
+            # AGO/AGE et autres événements
+            events = re.findall(
+                r'(AG[OE]|Assemblée|Dividende|Coupon|Résultats?|Émission)[^<]{10,150}',
+                text, re.IGNORECASE
+            )
+            for ev in events[:10]:
+                add_news(ev.strip(), "BRVM Officiel")
+    except Exception as e:
+        print(f"  Ticker tape scrape erreur: {e}")
+
+    # ── 2. Avis et publications BRVM ─────────────────────────────
+    try:
+        avis_url = "https://www.brvm.org/fr/marche/avis-et-publications/avis"
+        resp = requests.get(avis_url, headers=headers_web, timeout=20, verify=False)
+        if resp.status_code == 200 and len(resp.text) > 500:
+            # Extraire les titres des avis
+            titles = re.findall(
+                r'<(?:h[23]|a)[^>]*class="[^"]*(?:title|view-field)[^"]*"[^>]*>\s*([^<]{20,200})\s*</(?:h[23]|a)>',
+                resp.text, re.IGNORECASE
+            )
+            for title in titles[:15]:
+                t = title.strip()
+                # Détecter le ticker
+                ticker = "BRVM"
+                for tk in TICKERS_KNOWN:
+                    if tk in t.upper():
+                        ticker = tk
+                        break
+                add_news(t, "BRVM Officiel", ticker, avis_url)
+    except Exception as e:
+        print(f"  Avis BRVM scrape erreur: {e}")
+
+    # ── 3. RSS AgenceEcofin ───────────────────────────────────────
+    rss_sources = [
         ("https://www.agenceecofin.com/rss/toute-actualite", "AgenceEcofin"),
+        ("https://www.brvm.org/fr/rss.xml", "BRVM RSS"),
     ]
-
-    for rss_url, source_name in sources:
+    for rss_url, source_name in rss_sources:
         try:
-            resp = requests.get(rss_url, timeout=15, headers={"User-Agent": USER_AGENT}, verify=False)
+            resp = requests.get(rss_url, timeout=15, headers=headers_web, verify=False)
             if resp.status_code != 200:
-                print(f"  RSS {source_name}: {resp.status_code}")
                 continue
             root = ET.fromstring(resp.content)
-            items = root.findall(".//item")[:10]
+            items = root.findall(".//item")[:15]
             for item in items:
                 title = item.findtext("title", "").strip()
-                pub = item.findtext("pubDate", now)
-                link = item.findtext("link", "")
-                if not title or title in seen:
+                link  = item.findtext("link",  "")
+                pub   = item.findtext("pubDate", now)
+                if not title:
                     continue
-                seen.add(title)
-                # Détecter le ticker mentionné
+                # Filtrer les articles BRVM/marchés africains
+                keywords = ["BRVM","bourse","boursier","action","marché","Afrique",
+                            "FCFA","dividende","résultat","obligation"] + list(TICKERS_KNOWN)
+                if not any(kw.upper() in title.upper() for kw in keywords):
+                    continue
                 ticker = "BRVM"
                 for tk in TICKERS_KNOWN:
                     if tk in title.upper():
                         ticker = tk
                         break
-                news_rows.append({
-                    "published_at": now,
-                    "source": source_name,
-                    "ticker": ticker,
-                    "headline": title[:500],
-                    "url": link[:500],
-                })
+                add_news(title, source_name, ticker, link, now)
         except Exception as e:
             print(f"  RSS {source_name} erreur: {e}")
 
+    # ── 4. Scraper les événements (dividendes, AGO) ───────────────
+    scrape_events()
+
+    print(f"  {len(news_rows)} news collectées")
     if not news_rows:
-        print("  Aucune news récupérée")
+        print("  Aucune news — brvm.org peut être indisponible")
         return
 
-    # Upsert dans brvm_news
+    # Upsert par batch de 20
+    ok = 0
+    for i in range(0, len(news_rows), 20):
+        batch = news_rows[i:i+20]
+        try:
+            resp = requests.post(
+                SUPABASE_URL + "/rest/v1/brvm_news",
+                headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
+                json=batch, timeout=15
+            )
+            if resp.status_code in (200, 201):
+                ok += len(batch)
+            else:
+                print(f"  News batch erreur {resp.status_code}: {resp.text[:100]}")
+        except Exception as e:
+            print(f"  News batch exception: {e}")
+    print(f"  News upsert: {ok}/{len(news_rows)} OK")
+
+
+def scrape_events():
+    """
+    Scrape les événements du calendrier BRVM :
+    dividendes, AGO/AGE, résultats depuis le ticker tape brvm.org.
+    Alimente brvm_events.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    events = []
+    headers_web = {"User-Agent": USER_AGENT, "Accept-Language": "fr-FR,fr;q=0.9"}
+
+    try:
+        resp = requests.get("https://www.brvm.org/fr", headers=headers_web, timeout=20, verify=False)
+        if resp.status_code != 200 or len(resp.text) < 500:
+            return
+
+        text = resp.text
+        # Pattern: "TICKER : Paiement de dividendes le JJ mois AAAA, XXX FCFA par action"
+        div_pat = re.compile(
+            r'([A-Z]{3,6})\s*:\s*Paiement\s+de\s+dividendes?\s+le\s+(\d+\s+\w+\s+\d{4})'
+            r'[^,]*,?\s*([\d\s,.]+)\s*FCFA\s*par\s+action',
+            re.IGNORECASE
+        )
+        for m in div_pat.finditer(text):
+            ticker   = m.group(1).upper()
+            date_str = m.group(2).strip()
+            amount   = m.group(3).strip().replace(' ','').replace(',','.')
+            if ticker not in TICKERS_KNOWN:
+                continue
+            try:
+                amount_f = float(amount)
+            except:
+                amount_f = None
+
+            # Parser la date française
+            mois = {"janvier":"01","février":"02","mars":"03","avril":"04",
+                    "mai":"05","juin":"06","juillet":"07","août":"08",
+                    "septembre":"09","octobre":"10","novembre":"11","décembre":"12"}
+            parts = date_str.lower().split()
+            event_date = None
+            if len(parts) == 3:
+                m_num = mois.get(parts[1], "01")
+                event_date = f"{parts[2]}-{m_num}-{parts[0].zfill(2)}"
+
+            events.append({
+                "ticker": ticker,
+                "event_type": "dividende",
+                "event_date": event_date or TODAY,
+                "description": f"Dividende {amount_f} FCFA/action" if amount_f else "Paiement dividende",
+                "amount": amount_f,
+                "created_at": now,
+            })
+
+        # Coupon obligations
+        coupon_pat = re.compile(
+            r'([A-Z]{3,6})\s*:\s*Paiement\s+des?\s+coupons?[^<]{0,100}le\s+(\d+\s+\w+\s+\d{4})',
+            re.IGNORECASE
+        )
+        for m in coupon_pat.finditer(text):
+            ticker = m.group(1).upper()
+            if ticker not in TICKERS_KNOWN:
+                continue
+            events.append({
+                "ticker": ticker,
+                "event_type": "coupon",
+                "event_date": TODAY,
+                "description": "Paiement coupon obligation",
+                "amount": None,
+                "created_at": now,
+            })
+
+    except Exception as e:
+        print(f"  scrape_events erreur: {e}")
+        return
+
+    if not events:
+        return
+
+    print(f"  {len(events)} événements détectés")
     try:
         resp = requests.post(
-            SUPABASE_URL + "/rest/v1/brvm_news",
+            SUPABASE_URL + "/rest/v1/brvm_events",
             headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
-            json=news_rows, timeout=15
+            json=events, timeout=15
         )
-        print(f"  News upsert: {resp.status_code} — {len(news_rows)} articles")
+        print(f"  Events upsert: {resp.status_code}")
     except Exception as e:
-        print(f"  News upsert erreur: {e}")
+        print(f"  Events upsert erreur: {e}")
 
 
 def upsert_prices(rows):
