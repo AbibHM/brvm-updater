@@ -981,7 +981,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
     <div id="authUserBadge" style="display:none;align-items:center;gap:4px;flex-shrink:0" title="Connecté">
       <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);flex-shrink:0"></div>
       <span id="authUserEmail" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--dim)"></span>
-      <button class="tb-btn" style="padding:1px 6px;font-size:10px;border-color:#ff4444;color:#ff4444" onclick="window.location.href='index.html'" title="Déconnexion">LOGOUT</button>
+      <button class="tb-btn" style="padding:1px 6px;font-size:10px;border-color:#ff4444;color:#ff4444" onclick="doLogout()" title="Déconnexion">LOGOUT</button>
     </div>
     <button class="tb-btn" id="authLoginBtn" onclick="showAuthModal()" style="border-color:var(--cyan);color:var(--cyan);font-size:10px;padding:2px 8px;white-space:nowrap;flex-shrink:0" title="Se connecter">
       🔐 LOGIN
@@ -6280,6 +6280,20 @@ document.getElementById('authModal').addEventListener('click', e => {
 });
 
 
+// ── Logout ────────────────────────────────────────────────
+async function doLogout(){
+  try {
+    // Signout Supabase
+    await fetch(SUPABASE_URL + '/auth/v1/logout', {
+      method: 'POST',
+      headers: {'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + (window._authToken||'')}
+    });
+  } catch(e){}
+  window._authToken = null;
+  window._authRefresh = null;
+  window.location.href = 'index.html?logout=1';
+}
+
 // ── Exposition sur window pour les onclick inline ──────────
 window.showAuthModal       = showAuthModal;
 window.hideAuthModal       = hideAuthModal;
@@ -6296,6 +6310,7 @@ window.exportBulletin      = exportBulletin;
 window.tkFind              = tkFind;
 window.fetchTickers        = fetchTickers;
 window.fetchFundamentals   = fetchFundamentals;
+window.doLogout            = doLogout;
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════╗ -->
