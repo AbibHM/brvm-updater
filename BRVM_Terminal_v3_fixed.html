@@ -1623,6 +1623,68 @@ async function fetchCapStats(){
   }catch(e){ console.warn("[BRVM] fetchCapStats:", e); }
 }
 
+async function fetchTickers(){
+  // Charge tous les tickers depuis brvm_meta + brvm_fundamentals
+  // et met à jour le tableau TICKERS dynamiquement
+  try {
+    // Récupérer prix/volume depuis brvm_meta (tous sauf les indices)
+    const urlMeta = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=not.like.BRVM-*&select=ticker,last_close,last_volume,change_pct&order=ticker";
+    // Récupérer name/sector/country depuis brvm_fundamentals
+    const urlFund = SUPABASE_URL + "/rest/v1/brvm_fundamentals?select=ticker,name,sector,country&order=ticker";
+
+    const [rMeta, rFund] = await Promise.all([
+      fetch(urlMeta, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}}),
+      fetch(urlFund, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}}),
+    ]);
+    if(!rMeta.ok) return;
+    const meta = await rMeta.json();
+    const fund = rFund.ok ? await rFund.json() : [];
+
+    // Index fund par ticker
+    const fundIdx = {};
+    fund.forEach(f => { fundIdx[f.ticker] = f; });
+
+    let added = 0, updated = 0;
+    meta.forEach(row => {
+      if(!row.ticker || !row.last_close) return;
+      const f = fundIdx[row.ticker] || {};
+      const existing = TICKERS.find(t => t.s === row.ticker);
+      if(existing){
+        // Mettre à jour le prix live
+        if(row.last_close) existing.p = row.last_close;
+        if(row.last_volume != null) existing.vol = row.last_volume;
+        if(row.change_pct != null) existing.var = row.change_pct;
+        // Mettre à jour name/sector/country si disponibles dans fund
+        if(f.name)    existing.n   = f.name;
+        if(f.sector)  existing.sec = f.sector;
+        if(f.country) existing.cty = f.country;
+        normalize(existing);
+        updated++;
+      } else {
+        // Nouveau ticker non présent dans le seed JS — créer
+        const t = {
+          s:   row.ticker,
+          n:   f.name    || row.ticker,
+          sec: f.sector  || "—",
+          cty: f.country || "—",
+          p:   row.last_close,
+          v:   row.change_pct || 0,
+          vol: row.last_volume || 0,
+          cap: null,
+        };
+        normalize(t);
+        TICKERS.push(t);
+        added++;
+      }
+    });
+
+    console.log(\`[BRVM] fetchTickers: \${updated} mis à jour, \${added} nouveaux — total \${TICKERS.length}\`);
+    // Re-render si un ticker est déjà affiché
+    if(_curView === "markets") renderMarkets();
+    if(_curView === "charts" && _curTicker) renderCharts();
+  } catch(e){ console.warn("[BRVM] fetchTickers:", e); }
+}
+
 async function fetchFundamentals(){
   try{
     const url = SUPABASE_URL+"/rest/v1/brvm_fundamentals?select=ticker,name,sector,country,pe,pb,ps,ev_ebitda,p_fcf,roe,roic,roa,roce,marge_brute,marge_op,marge_nette,marge_ebitda,debt_equity,debt_ebitda,int_cov,current_ratio,quick_ratio,dy,payout,dividende,piotroski,growth_ca,growth_bpa,growth_rn,growth_div,bpa,vcp,beta,altman_z,mm50,mm200,ca,res_brut,res_exp,ebitda,rn,treso,dette,cap_propres,ev,cap_boursiere,score,fair_value,reco,fiscal_year";
@@ -1703,7 +1765,7 @@ async function fetchFundamentals(){
    complète (champs du bulletin), autres simplifiés.
    Prix au 15/05/2026 (référence portefeuille Joel Thibaut)
    ============================================================ */
-const TICKERS = [
+let TICKERS = [
   /* ── PORTEFEUILLE (données bulletin complètes) ──────────── */
   {s:"SNTS",  n:"Sonatel",                   sec:"Télécoms",        cty:"Sénégal",         flag:"🇸🇳", rank:5,
    p:29000, v: 1.05, vol:8129,  cap:2900000,
@@ -5868,6 +5930,7 @@ initRealPrices();          // fetch asynchrone en arrière-plan
 fetchSupabaseLastUpdate(); // affiche la date de dernière MAJ Supabase
 fetchIndices();            // charge les indices BRVM live
 fetchCapStats();           // capitalisation et stats marché dynamiques
+fetchTickers();            // prix live + nouveaux tickers depuis brvm_meta
 fetchFundamentals();       // fondamentaux depuis brvm_fundamentals Supabase
 fetchNews();               // fil d'actualités depuis Supabase
 fetchEvents();             // calendrier événements depuis Supabase
