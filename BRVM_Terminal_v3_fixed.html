@@ -719,42 +719,10 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
 .bull-foot b{color:#000}
 
 /* PRINT — n'imprime que le bulletin (sans titre/URL Chrome) */
+/* @media print simplifié — l'impression passe par popup window (exportBulletin) */
 @media print{
-  /* @page margin:0 -> écrase les headers/footers du navigateur ;
-     padding interne ajouté sur .bulletin pour conserver les marges */
-  @page{
-    size:A4;
-    margin:0;
-  }
-  html,body{
-    background:#fff !important;color:#111 !important;
-    overflow:visible !important;height:auto !important;
-    margin:0 !important;padding:0 !important;
-  }
-  .topbar,.ftabs,.statusbar,.subtabs,.ticker-strip,.bull-actions,.toast,
-  .print-hint{display:none !important}
-  .viewport{height:auto !important;overflow:visible !important}
-  .view{display:none !important}
-  #view-charts.active{display:block !important}
-  #view-charts.active > *:not(.sub-content){display:none !important}
-  .sub-content{overflow:visible !important;padding:0}
-  .sub-view{display:none !important}
-  #sv-bull.active{display:block !important}
-  .bulletin{
-    box-shadow:none !important;margin:0 !important;
-    padding:14mm 12mm !important;max-width:none !important;
-    display:block !important;visibility:visible !important;
-    color:#111 !important;
-  }
-  /* Forcer les couleurs pour l'impression */
-  .bulletin * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-  .bull-hdr,.bull-name,.bull-key,.bull-section,.bull-meta-row { display:block !important; }
-  /* S'assurer que le conteneur parent est visible */
-  #view-charts { display:block !important; }
-  .sub-content  { display:block !important; overflow:visible !important; }
-  #sv-bull      { display:block !important; }
-  .bull-section{page-break-inside:avoid}
-  .bull-section + .bull-section{page-break-before:auto}
+  @page{ size:A4; margin:15mm 12mm; }
+  body{ background:#fff !important; }
 }
 
 /* ─── Modal portfolio editor ─────────────────────────── */
@@ -3734,35 +3702,83 @@ function renderBulletin(t, val, score, r){
 
 /* ── Export PDF ─────────────────────────────────────────── */
 function exportBulletin(){
-  // S'assurer que le ticker est chargé et le bulletin rendu
   const t = tkFind(_curTicker);
   if(!t){ alert("Aucun ticker sélectionné. Tapez un ticker (ex: NSBC GO) puis cliquez BULL."); return; }
 
-  // Forcer le rendu complet si bulletinPage est vide
-  if(!$("bulletinPage").innerHTML.trim()){
-    renderCharts();  // re-render complet pour peupler le bulletin
+  // S'assurer que le bulletin est rendu
+  if(!$("bulletinPage").innerHTML.trim()) renderCharts();
+  const html = $("bulletinPage").innerHTML;
+  if(!html || !html.trim()){
+    alert("Le bulletin n\'a pas pu être généré. Vérifiez que le ticker est chargé.");
+    return;
   }
 
-  showSub("bull");
+  // Extraire le CSS bulletin depuis la page courante
+  let bulletinCSS = "";
+  for(const sheet of document.styleSheets){
+    try {
+      for(const rule of sheet.cssRules){
+        const t = rule.cssText;
+        if(t.includes(".bull") || t.includes(".bulletin") || t.includes("@page") ||
+           t.includes(".bar") || t.includes(".reco-") || t.includes(".risk-") ||
+           t.includes(".peer") || t.includes(".sec-chip") || t.includes(".tk-chip") ||
+           t.includes(".val-") || t.includes(".kv-")){
+          bulletinCSS += rule.cssText + "\n";
+        }
+      }
+    } catch(e){}
+  }
 
-  // Attendre que le DOM soit prêt puis imprimer
-  setTimeout(() => {
-    document.title = `BRVM Research — ${_curTicker} — Joel Thibaut`;
-    window.print();
-    setTimeout(()=>{ document.title = "BRVM TERMINAL v2 — Bloomberg-style Shell"; }, 1000);
-  }, 350);
-}
+  const popup = window.open("", `BRVM_Research_${_curTicker}`,
+    "width=900,height=1100,scrollbars=yes,resizable=yes");
 
-function aperçuBulletin(){
-  const t = tkFind(_curTicker);
-  if(!t){ alert("Aucun ticker sélectionné. Tapez un ticker (ex: NSBC GO) puis cliquez BULL."); return; }
-  if(!$("bulletinPage").innerHTML.trim()){ renderCharts(); }
-  showSub("bull");
-  setTimeout(() => {
-    document.title = `BRVM Research — ${_curTicker} — Joel Thibaut`;
-    window.print();
-    setTimeout(()=>{ document.title = "BRVM TERMINAL v2 — Bloomberg-style Shell"; }, 1000);
-  }, 350);
+  popup.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>BRVM Research — ${_curTicker} — Joel Thibaut</title>
+  <style>
+    @page { size:A4; margin:15mm 12mm; }
+    * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body { font-family: 'Courier New', Courier, monospace; font-size:11px;
+           background:#fff; color:#111; margin:0; padding:0; }
+    /* Variables CSS */
+    :root {
+      --orange-bright:#ff9900; --orange:#cc7700; --orange-dim:#332200;
+      --bg-deep:#000; --bg-panel:#0a0a0a; --bg-panel-2:#111;
+      --white:#fff; --dim:#666; --border:#2a2a2a;
+    }
+    /* Forcer fond blanc pour impression */
+    .bull-hdr, .bull-section, .bull-key, .bull-meta-row { background:#fff !important; }
+    .bulletin { max-width:100% !important; padding:0 !important; }
+    ${bulletinCSS}
+    /* Corrections impression */
+    .bull-hdr { background:#fff !important; border-bottom:2px solid #000 !important;
+                color:#000 !important; padding:8px 0 !important; }
+    .bull-hdr .h1 { color:#000 !important; font-size:14px !important; font-weight:bold; }
+    .bull-hdr .h2, .bull-hdr .conf, .bull-hdr .date-big, .bull-hdr .rang
+      { color:#000 !important; }
+    .bull-name { color:#000 !important; font-size:20px !important; }
+    .bull-section h3 { color:#000 !important; background:#eee !important; }
+    .reco-cell .v, .cell .v { color:#000 !important; }
+    .reco-cell[class*="VENDRE"] .v, .reco-sell .v { color:#c00 !important; }
+    .reco-cell[class*="ACHAT"] .v, .reco-buy .v { color:#090 !important; }
+    table { width:100%; border-collapse:collapse; }
+    td, th { padding:3px 6px; border:1px solid #ccc; font-size:10px; }
+    @media print {
+      body { background:#fff !important; }
+      button, .bull-actions, .print-hint { display:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bulletin">${html}</div>
+  <script>
+    window.onload = function(){ window.print(); }
+  <\/script>
+</body>
+</html>`);
+  popup.document.close();
 }
 
 /* ── Toggle chart mode (ligne / chandelier) ──────────────── */
