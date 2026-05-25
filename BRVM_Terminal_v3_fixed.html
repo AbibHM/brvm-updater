@@ -743,7 +743,16 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
   .bulletin{
     box-shadow:none !important;margin:0 !important;
     padding:14mm 12mm !important;max-width:none !important;
+    display:block !important;visibility:visible !important;
+    color:#111 !important;
   }
+  /* Forcer les couleurs pour l'impression */
+  .bulletin * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  .bull-hdr,.bull-name,.bull-key,.bull-section,.bull-meta-row { display:block !important; }
+  /* S'assurer que le conteneur parent est visible */
+  #view-charts { display:block !important; }
+  .sub-content  { display:block !important; overflow:visible !important; }
+  #sv-bull      { display:block !important; }
   .bull-section{page-break-inside:avoid}
   .bull-section + .bull-section{page-break-before:auto}
 }
@@ -1404,8 +1413,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
       <!-- BULLETIN — Format PDF imprimable -->
       <div class="sub-view" id="sv-bull">
         <div class="bull-actions">
-          <button class="btn" onclick="exportBulletin()">📄 EXPORTER PDF</button>
-          <button class="btn ghost" onclick="exportBulletin()">🖨️ APERÇU IMPRESSION</button>
+          <button class="btn" onclick="exportBulletin()">📄 EXPORTER / IMPRIMER</button>
           <span class="info">Astuce : dans la boîte d'impression Chrome → <b>Plus de paramètres</b> → décoche <b>« En-têtes et pieds de page »</b> pour supprimer l'URL et le titre.</span>
         </div>
         <div class="bulletin" id="bulletinPage"></div>
@@ -3726,13 +3734,35 @@ function renderBulletin(t, val, score, r){
 
 /* ── Export PDF ─────────────────────────────────────────── */
 function exportBulletin(){
-  // Activate the bulletin sub-tab before print
+  // S'assurer que le ticker est chargé et le bulletin rendu
+  const t = tkFind(_curTicker);
+  if(!t){ alert("Aucun ticker sélectionné. Tapez un ticker (ex: NSBC GO) puis cliquez BULL."); return; }
+
+  // Forcer le rendu complet si bulletinPage est vide
+  if(!$("bulletinPage").innerHTML.trim()){
+    renderCharts();  // re-render complet pour peupler le bulletin
+  }
+
+  showSub("bull");
+
+  // Attendre que le DOM soit prêt puis imprimer
+  setTimeout(() => {
+    document.title = `BRVM Research — ${_curTicker} — Joel Thibaut`;
+    window.print();
+    setTimeout(()=>{ document.title = "BRVM TERMINAL v2 — Bloomberg-style Shell"; }, 1000);
+  }, 350);
+}
+
+function aperçuBulletin(){
+  const t = tkFind(_curTicker);
+  if(!t){ alert("Aucun ticker sélectionné. Tapez un ticker (ex: NSBC GO) puis cliquez BULL."); return; }
+  if(!$("bulletinPage").innerHTML.trim()){ renderCharts(); }
   showSub("bull");
   setTimeout(() => {
     document.title = `BRVM Research — ${_curTicker} — Joel Thibaut`;
     window.print();
-    setTimeout(()=>{ document.title = "BRVM TERMINAL v2 — Bloomberg-style Shell"; }, 500);
-  }, 200);
+    setTimeout(()=>{ document.title = "BRVM TERMINAL v2 — Bloomberg-style Shell"; }, 1000);
+  }, 350);
 }
 
 /* ── Toggle chart mode (ligne / chandelier) ──────────────── */
@@ -3763,6 +3793,11 @@ function showSub(name){
   // Pré-positionne document.title pour impression directe (Ctrl+P)
   if(name === "bull"){
     document.title = `BRVM Research — ${_curTicker} — Joel Thibaut`;
+    // Rendre le bulletin si vide (ex: clic direct sur BULL sans passer par renderCharts)
+    const bp = $("bulletinPage");
+    if(bp && !bp.innerHTML.trim() && _curTicker){
+      renderCharts();
+    }
   } else {
     document.title = "BRVM TERMINAL v2 — Bloomberg-style Shell";
   }
