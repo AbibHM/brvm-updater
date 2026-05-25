@@ -595,6 +595,13 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
 .fvr-col.risq .fvr-item::before{content:"✗";color:var(--red)}
 .fvr-empty{color:var(--dim);font-style:italic;font-size:10px}
 
+.fund-hist-tbl th { color:var(--orange-bright);font-size:9px;letter-spacing:0.5px;border-bottom:1px solid var(--orange-dim);padding:3px 6px;text-align:left;white-space:nowrap }
+.fund-hist-tbl td { padding:3px 6px;border-bottom:1px solid var(--border);font-family:monospace;white-space:nowrap }
+.fund-hist-tbl tr:last-child td { border-bottom:none }
+.fund-hist-tbl .ok  { color:var(--cyan) }
+.fund-hist-tbl .bad { color:var(--red) }
+.fund-hist-tbl .warn{ color:var(--yellow) }
+
 /* BULLETIN page (PDF export) */
 .bull-actions{
   padding:10px 14px;background:#0a0a0a;border-bottom:1px solid var(--border);
@@ -1573,6 +1580,12 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
             <h4 id="fvrR">🚨 RISQUES (0)</h4>
             <div id="fvrRisq"></div>
           </div>
+        </div>
+        <!-- Historique financier -->
+        <div id="fundHistory" style="padding:14px;background:var(--bg-panel);border-top:1px solid var(--border)">
+          <h4 style="color:var(--orange-bright);font-size:11px;letter-spacing:1px;margin-bottom:8px;border-bottom:1px solid var(--orange-dim);padding-bottom:4px">HISTORIQUE FINANCIER — 5 ANS</h4>
+          <div id="fundHistTable" style="color:var(--dim);font-size:11px">Chargement...</div>
+          <canvas id="fundHistChart" style="margin-top:12px;max-height:140px;width:100%"></canvas>
         </div>
       </div>
 
@@ -3277,6 +3290,110 @@ function computeRiskScorecard(t){
   return {credit, liq, val, op, mkt, composite, ke, isBank};
 }
 
+/* ── Historique Financier — brvm_financials ─────────────── */
+async function fetchFinancialHistory(ticker){
+  try {
+    const url = SUPABASE_URL + "/rest/v1/brvm_financials" +
+      "?ticker=eq." + ticker +
+      "&period_type=eq.annual" +
+      "&select=fiscal_year,ca,rn,cap_propres,bpa,dividende,roe,roa,marge_nette,growth_ca,growth_rn" +
+      "&order=fiscal_year.desc&limit=5";
+    const r = await fetch(url, {
+      headers: {"apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY}
+    });
+    if(!r.ok) return [];
+    const data = await r.json();
+    return data.reverse(); // Ordre chronologique
+  } catch(e) { return []; }
+}
+
+function renderFundHistory(rows, ticker){
+  const el = $("fundHistTable");
+  const canvas = $("fundHistChart");
+  if(!el) return;
+
+  if(!rows || rows.length === 0){
+    el.innerHTML = '<span style="color:var(--dim);font-size:11px">Aucun historique disponible — rapport annuel non encore parsé</span>';
+    if(canvas) canvas.style.display = 'none';
+    return;
+  }
+
+  // Tableau
+  const cols = ["Exercice","CA (M)","RN (M)","BPA (F)","ROE","Marge Nette","Div. (F)"];
+  const headers = cols.map(c => `<th>${c}</th>`).join('');
+  const rowsHtml = rows.map(d => {
+    const rnCls = d.rn < 0 ? 'bad' : (d.rn > 0 ? 'ok' : '');
+    return `<tr>
+      <td><b>${d.fiscal_year}</b></td>
+      <td>${d.ca ? fmt(Math.round(d.ca)) : '—'}</td>
+      <td class="${rnCls}">${d.rn != null ? fmt(Math.round(d.rn)) : '—'}</td>
+      <td>${d.bpa != null ? fmt2(d.bpa) : '—'}</td>
+      <td class="${(d.roe||0)>15?'ok':'warn'}">${d.roe != null ? fmt2(d.roe)+'%' : '—'}</td>
+      <td>${d.marge_nette != null ? fmt2(d.marge_nette)+'%' : '—'}</td>
+      <td>${d.dividende != null ? fmt(d.dividende) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<table class="fund-hist-tbl" style="width:100%;border-collapse:collapse;font-size:10px">
+    <thead><tr>${headers}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`;
+
+  // Graphique CA / RN avec Canvas
+  if(canvas && rows.length > 1){
+    canvas.style.display = 'block';
+    canvas.width  = canvas.offsetWidth || 600;
+    canvas.height = 120;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const years = rows.map(d => d.fiscal_year);
+    const caVals = rows.map(d => d.ca || 0);
+    const rnVals = rows.map(d => d.rn || 0);
+    const allVals = [...caVals, ...rnVals].filter(v => v !== 0);
+    if(allVals.length === 0) return;
+
+    const maxV = Math.max(...allVals.map(Math.abs)) * 1.15;
+    const W = canvas.width, H = canvas.height;
+    const padL = 50, padR = 10, padT = 10, padB = 24;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+    const barW = chartW / (years.length * 2 + 1);
+    const zeroY = padT + chartH * (maxV / (2 * maxV));
+
+    // Axe zéro
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, zeroY); ctx.lineTo(W - padR, zeroY); ctx.stroke();
+
+    years.forEach((y, i) => {
+      const x0 = padL + barW + i * (barW * 2 + barW * 0.5);
+
+      // Barre CA
+      const caH = (caVals[i] / maxV) * (chartH / 2);
+      ctx.fillStyle = '#cc7700';
+      ctx.fillRect(x0, zeroY - caH, barW, caH);
+
+      // Barre RN
+      const rnH = (Math.abs(rnVals[i]) / maxV) * (chartH / 2);
+      ctx.fillStyle = rnVals[i] >= 0 ? '#00cc88' : '#cc3333';
+      if(rnVals[i] >= 0) ctx.fillRect(x0 + barW + 2, zeroY - rnH, barW, rnH);
+      else               ctx.fillRect(x0 + barW + 2, zeroY, barW, rnH);
+
+      // Label année
+      ctx.fillStyle = '#666'; ctx.font = '9px monospace';
+      ctx.fillText(y, x0, H - 6);
+    });
+
+    // Légende
+    ctx.fillStyle = '#cc7700'; ctx.fillRect(padL, 2, 10, 8);
+    ctx.fillStyle = '#aaa'; ctx.font = '9px monospace'; ctx.fillText('CA', padL + 13, 10);
+    ctx.fillStyle = '#00cc88'; ctx.fillRect(padL + 30, 2, 10, 8);
+    ctx.fillText('RN', padL + 43, 10);
+  } else if(canvas) {
+    canvas.style.display = 'none';
+  }
+}
+
 /* ── Forces / Vigilance / Risques — références sectorielles ── */
 function computeFVR(t){
   const f=[], v=[], r=[];
@@ -3562,6 +3679,8 @@ async function renderCharts(){
 
   // ── Renders avec try/catch pour isoler les erreurs ───
   try { renderFund(t); } catch(e){ console.error("[FUND]", e); }
+  // Charger l'historique financier de façon asynchrone
+  fetchFinancialHistory(t.s).then(rows => renderFundHistory(rows, t.s));
   try { renderVal(t, val); } catch(e){ console.error("[VAL]", e); }
   try { renderRisk(t); } catch(e){ console.error("[RISK]", e); $("riskGrid").innerHTML = `<div style="color:red;padding:14px">Erreur RISK: ${e.message}</div>`; }
   try { renderPeers(t); } catch(e){ console.error("[PEERS]", e); $("peersTable").innerHTML = `<tr><td style="color:red">Erreur PEERS: ${e.message}</td></tr>`; }
