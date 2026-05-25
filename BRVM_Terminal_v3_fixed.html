@@ -6279,6 +6279,24 @@ document.getElementById('authModal').addEventListener('click', e => {
   });
 });
 
+
+// ── Exposition explicite sur window pour les onclick inline ──
+window.showAuthModal     = showAuthModal;
+window.hideAuthModal     = hideAuthModal;
+window._authLogin        = _authLogin;
+window._authRegister     = _authRegister;
+window._authLogout       = _authLogout;
+window._authForgotPassword = _authForgotPassword;
+window._authSwitchTab    = _authSwitchTab;
+window.showView          = showView;
+window.showSub           = showSub;
+window.openTicker        = openTicker;
+window.renderCharts      = renderCharts;
+window.exportBulletin    = exportBulletin;
+window.tkFind            = tkFind;
+window.fetchTickers      = fetchTickers;
+window.fetchFundamentals = fetchFundamentals;
+
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════╗ -->
