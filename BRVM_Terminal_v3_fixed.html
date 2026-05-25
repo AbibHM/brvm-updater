@@ -1678,7 +1678,7 @@ async function fetchTickers(){
       }
     });
 
-    console.log(\`[BRVM] fetchTickers: \${updated} mis à jour, \${added} nouveaux — total \${TICKERS.length}\`);
+    console.log(`[BRVM] fetchTickers: ${updated} mis à jour, ${added} nouveaux — total ${TICKERS.length}`);
     // Re-render si un ticker est déjà affiché
     if(_curView === "markets") renderMarkets();
     if(_curView === "charts" && _curTicker) renderCharts();
