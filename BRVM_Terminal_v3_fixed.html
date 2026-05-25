@@ -2976,7 +2976,7 @@ function computeRiskScorecard(t){
     else if(pe > thr.pe_cheap) val += 1;
     else val += 0.5;
   }
-  const up = t.upside ?? 0;
+  const up = t._upside ?? t.upside ?? 0;
   if(up < -30) val += 4; else if(up < -10) val += 2; else if(up < 5) val += 1;
   val = Math.min(10, val);
 
@@ -3016,7 +3016,7 @@ function computeFVR(t){
   const thr   = getSectorThresholds(t.sec || "default");
   const isBank = (t.sec||"") === "Finance";
   const {ke}  = computeWACC(t);
-  const up    = t.upside ?? 0;
+  const up    = t._upside ?? t.upside ?? 0;
 
   // ── FORCES ────────────────────────────────────────────────
   // Valorisation
@@ -3290,18 +3290,16 @@ async function renderCharts(){
     </div>`;
   }
 
-  // ── FUND : Métriques fondamentales (3 colonnes) ───────
-  renderFund(t);
-  // ── VAL : 5 modèles ──────────────────────────────────
-  renderVal(t, val);
-  // ── RISK : 5 dimensions ──────────────────────────────
-  renderRisk(t);
-  // ── PEERS : Comparables ──────────────────────────────
-  renderPeers(t);
-  // ── FVR : Forces / Vigilance / Risques ───────────────
-  renderFVR(t);
-  // ── BULL : Bulletin ──────────────────────────────────
-  renderBulletin(t, val, score, r);
+  // ── Mettre upside sur t pour que computeRiskScorecard/computeFVR y aient accès
+  t._upside = upside;
+
+  // ── Renders avec try/catch pour isoler les erreurs ───
+  try { renderFund(t); } catch(e){ console.error("[FUND]", e); }
+  try { renderVal(t, val); } catch(e){ console.error("[VAL]", e); }
+  try { renderRisk(t); } catch(e){ console.error("[RISK]", e); $("riskGrid").innerHTML = `<div style="color:red;padding:14px">Erreur RISK: ${e.message}</div>`; }
+  try { renderPeers(t); } catch(e){ console.error("[PEERS]", e); $("peersTable").innerHTML = `<tr><td style="color:red">Erreur PEERS: ${e.message}</td></tr>`; }
+  try { renderFVR(t); } catch(e){ console.error("[FVR]", e); $("fvrForces").innerHTML = `<div style="color:red">Erreur FVR: ${e.message}</div>`; }
+  try { renderBulletin(t, val, score, r); } catch(e){ console.error("[BULL]", e); }
 }
 
 function renderFund(t){
@@ -3396,7 +3394,7 @@ function renderVal(t, val){
         <td colspan="2">VALEUR FONDAMENTALE PONDÉRÉE</td>
         <td>${fmt(Math.round(val.pondere))} F CFA</td>
         <td class="${cls(upTot)}">${pct(upTot)}</td>
-        <td colspan="2">Pondération multi-modèles · WACC ${WACC}% · Rf ${RF}% · g ${G}%</td>
+        <td colspan="2">Ke=${val.wacc}% · Rf=${RF_BASE}% · g=${val.g}% · ${t.cty||""} · ${t.sec||""}</td>
       </tr>
     </tbody>`;
 }
@@ -3620,7 +3618,7 @@ function renderBulletin(t, val, score, r){
     <div class="bull-section">
       <div class="h"><span class="num">04</span>MOTEUR DE VALORISATION — 5 MODÈLES</div>
       <div style="font-size:10px;color:#555;margin-bottom:6px">
-        WACC = ${WACC}% (prime risque UEMOA) · Rf = ${RF}% (Bons Trésor UEMOA) · Pondération : Graham 20% | DCF 25% | Résidu 25% | Cap. Bén. 15% | Comparables 15%
+        Ke = ${fmt2(val.wacc)}% (CAPM pays+secteur) · Rf = ${RF_BASE}% · g = ${val.g}% · β=${fmt2(val.beta)} · Prime pays ${val.crp}% · Prime secteur ${val.srp}%
       </div>
       <table class="bull-val-tbl">
         <thead><tr><th>MODÈLE</th><th>FORMULE</th><th>VALEUR INTRINSÈQUE</th><th>POTENTIEL</th></tr></thead>
