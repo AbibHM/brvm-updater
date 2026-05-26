@@ -408,16 +408,24 @@ def update_meta(rows):
 
 def get_pdf_urls():
     d = TODAY_COMPACT
+    # Format alternatif avec tirets
+    d2 = TODAY[:4] + "-" + TODAY[5:7] + "-" + TODAY[8:10]  # YYYY-MM-DD
     return [
+        # brvm.org — format standard (suffixe _2 = séance complète, _1 = partiel)
         f"https://www.brvm.org/sites/default/files/boc_{d}_2.pdf",
         f"https://www.brvm.org/sites/default/files/boc_{d}_1.pdf",
+        # bfin.brvm.org — mirror secondaire
         f"http://bfin.brvm.org/boc/BOC_JOUR/BOC_{d}.pdf",
+        # Variantes de nommage observées
+        f"https://www.brvm.org/sites/default/files/BOC_{d}_2.pdf",
+        f"https://www.brvm.org/sites/default/files/BOC_{d}.pdf",
+        f"https://www.brvm.org/sites/default/files/boc_{d}.pdf",
     ]
 
 def fetch_pdf_bytes(url):
     headers = {"User-Agent": USER_AGENT, "Referer": "https://www.brvm.org/fr/bulletins-officiels-de-la-cote"}
     try:
-        r = requests.get(url, headers=headers, timeout=30, verify=False)
+        r = requests.get(url, headers=headers, timeout=60, verify=False)
         if r.status_code == 200 and r.headers.get("Content-Type", "").startswith("application/pdf"):
             return r.content
         if r.status_code == 200 and len(r.content) > 10000 and r.content[:4] == b"%PDF":
