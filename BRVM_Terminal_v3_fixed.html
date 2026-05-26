@@ -650,7 +650,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
 .bull-key .reco-cell .l{color:#fff8e0}
 .bull-key .reco-cell .v{color:#fff;font-size:18px}
 
-.bull-section{margin:20px 0;page-break-inside:avoid;break-inside:avoid}.bull-section:has(.bull-thesis){page-break-after:avoid;break-after:avoid}
+.bull-section{margin:20px 0;page-break-inside:avoid}
 .bull-section .h{
   background:#FF8000;color:#fff;padding:5px 10px;font-size:12px;font-weight:700;
   letter-spacing:1.5px;margin-bottom:8px;
@@ -4089,6 +4089,7 @@ function exportBulletin(){
   const t = tkFind(_curTicker);
   if(!t){ alert("Aucun ticker sélectionné. Tapez un ticker (ex: NSBC GO) puis cliquez BULL."); return; }
 
+  // S'assurer que le bulletin est rendu
   if(!$("bulletinPage").innerHTML.trim()) renderCharts();
   const html = $("bulletinPage").innerHTML;
   if(!html || !html.trim()){
@@ -4096,11 +4097,19 @@ function exportBulletin(){
     return;
   }
 
-  // Extraire TOUT le CSS de la page pour la popup
-  let allCSS = "";
+  // Extraire le CSS bulletin depuis la page courante
+  let bulletinCSS = "";
   for(const sheet of document.styleSheets){
     try {
-      for(const rule of sheet.cssRules){ allCSS += rule.cssText + "\n"; }
+      for(const rule of sheet.cssRules){
+        const t = rule.cssText;
+        if(t.includes(".bull") || t.includes(".bulletin") || t.includes("@page") ||
+           t.includes(".bar") || t.includes(".reco-") || t.includes(".risk-") ||
+           t.includes(".peer") || t.includes(".sec-chip") || t.includes(".tk-chip") ||
+           t.includes(".val-") || t.includes(".kv-")){
+          bulletinCSS += rule.cssText + "\n";
+        }
+      }
     } catch(e){}
   }
 
@@ -4115,67 +4124,35 @@ function exportBulletin(){
   <style>
     @page { size:A4; margin:15mm 12mm; }
     * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-
-    /* Variables impression — fond blanc, couleurs lisibles */
+    body { font-family: 'Courier New', Courier, monospace; font-size:11px;
+           background:#fff; color:#111; margin:0; padding:0; }
+    /* Variables CSS */
     :root {
-      --orange-bright:#cc6600; --orange:#cc6600; --orange-dim:#cc6600;
-      --cyan:#006688; --green:#007744; --red:#cc0000; --yellow:#886600;
-      --bg-deep:#fff; --bg-panel:#fff; --bg-panel-2:#f5f5f5;
-      --white:#111; --dim:#555; --border:#ccc;
+      --orange-bright:#ff9900; --orange:#cc7700; --orange-dim:#332200;
+      --bg-deep:#000; --bg-panel:#0a0a0a; --bg-panel-2:#111;
+      --white:#fff; --dim:#666; --border:#2a2a2a;
     }
-    body { font-family:'Courier New',Courier,monospace; font-size:11px;
-           background:#fff; color:#111; margin:0; padding:16px; }
-
-    /* CSS complet du terminal */
-    ${allCSS}
-
-    /* Overrides finaux — tout en blanc/noir pour impression */
-    body,.bulletin,.bull-section,.bull-hdr,.bull-key,
-    .bull-meta-row,.bull-3col,.fund-col,.risk-dim,td,th
-      { background:#fff !important; color:#111 !important; }
-
-    .bulletin { max-width:100% !important; padding:0 !important; box-shadow:none !important; }
-
-    .bull-hdr { border-bottom:2px solid #333 !important; padding:8px 0 12px !important; display:grid !important; }
-    .bull-hdr .h1 { font-size:13px !important; color:#cc6600 !important; }
-    .bull-hdr .h2,.bull-hdr .conf,.bull-hdr .date-big,.bull-hdr .rang { color:#555 !important; }
-    .bull-name { color:#111 !important; font-size:22px !important; font-weight:bold; }
-
-    .bull-section { border:1px solid #ddd !important; margin-bottom:8px !important; page-break-inside:avoid; break-inside:avoid; } .bull-section:has(.bull-thesis) { page-break-after:avoid !important; break-after:avoid !important; }
-    .bull-section .h { background:#f0f0f0 !important; color:#cc6600 !important; border-bottom:1px solid #ddd !important; }
-    .bull-section .num { background:#cc6600 !important; color:#fff !important; }
-
-    .bull-key .reco-cell,.bull-key .cell { background:#f8f8f8 !important; border:1px solid #ddd !important; }
-    .bull-key .l { color:#555 !important; }
-    .bull-key .v { color:#111 !important; font-weight:bold; }
-
-    /* Recommandations */
-    [class*="VENDRE"] .v, .reco-sell .v { color:#cc0000 !important; }
-    [class*="ACHAT"]  .v, .reco-buy  .v { color:#007700 !important; }
-    [class*="CONSERVER"] .v            { color:#886600 !important; }
-
-    /* Tableaux */
+    /* Forcer fond blanc pour impression */
+    .bull-hdr, .bull-section, .bull-key, .bull-meta-row { background:#fff !important; }
+    .bulletin { max-width:100% !important; padding:0 !important; }
+    ${bulletinCSS}
+    /* Corrections impression */
+    .bull-hdr { background:#fff !important; border-bottom:2px solid #000 !important;
+                color:#000 !important; padding:8px 0 !important; }
+    .bull-hdr .h1 { color:#000 !important; font-size:14px !important; font-weight:bold; }
+    .bull-hdr .h2, .bull-hdr .conf, .bull-hdr .date-big, .bull-hdr .rang
+      { color:#000 !important; }
+    .bull-name { color:#000 !important; font-size:20px !important; }
+    .bull-section h3 { color:#000 !important; background:#eee !important; }
+    .reco-cell .v, .cell .v { color:#000 !important; }
+    .reco-cell[class*="VENDRE"] .v, .reco-sell .v { color:#c00 !important; }
+    .reco-cell[class*="ACHAT"] .v, .reco-buy .v { color:#090 !important; }
     table { width:100%; border-collapse:collapse; }
-    th { background:#f0f0f0 !important; color:#333 !important; border:1px solid #ccc !important; padding:3px 6px; font-size:10px; }
-    td { border:1px solid #ddd !important; padding:3px 6px; font-size:10px; color:#111 !important; background:#fff !important; }
-    tr.pondere td { background:#f0f0f0 !important; font-weight:bold; }
-
-    /* Chips */
-    .sec-chip,.cty-chip,.tk-chip { background:#f0f0f0 !important; color:#333 !important; border:1px solid #ccc !important; }
-
-    /* Scorecard */
-    .risk-bar { background:#e0e0e0 !important; }
-    .risk-bar-fill { background:#cc6600 !important; }
-
-    /* FVR */
-    .fvr-force { color:#007700 !important; }
-    .fvr-vigil { color:#886600 !important; }
-    .fvr-risque,.fvr-risk { color:#cc0000 !important; }
-
-    /* Cacher non-imprimables */
-    button,.bull-actions,.print-hint,#fundHistory,#fundHistChart { display:none !important; }
-
-    @media print { body { background:#fff !important; } }
+    td, th { padding:3px 6px; border:1px solid #ccc; font-size:10px; }
+    @media print {
+      body { background:#fff !important; }
+      button, .bull-actions, .print-hint { display:none !important; }
+    }
   </style>
 </head>
 <body>
@@ -4183,6 +4160,9 @@ function exportBulletin(){
   <script>
     window.onload = function(){ window.print(); }
   <\/script>
+
+<!-- Bouton recherche mobile flottant -->
+<button id="mobileSearchBtn" onclick="showMobileSearch()" title="Rechercher un ticker">🔍</button>
 </body>
 </html>`);
   popup.document.close();
