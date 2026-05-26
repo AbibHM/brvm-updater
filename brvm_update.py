@@ -29,6 +29,47 @@ HEADERS_SB = {
 }
 
 BRVM_SCRAPE_URL = "https://www.brvm.org/fr/cours-actions/0"
+
+# Jours fériés BRVM/UEMOA — la bourse est fermée ces jours-là
+# Format: "MM-DD" (récurrents chaque année) ou "YYYY-MM-DD" (ponctuels)
+JOURS_FERIES = {
+    # Fériés récurrents UEMOA
+    "01-01",  # Jour de l'An
+    "05-01",  # Fête du Travail
+    "08-15",  # Assomption
+    "11-01",  # Toussaint
+    "12-25",  # Noël
+    # Fériés Côte d'Ivoire (pays siège BRVM)
+    "04-07",  # Journée nationale CI
+    "08-07",  # Fête Nationale CI
+    "11-15",  # Journée Nationale de la Paix CI
+    # Fériés mobiles 2026 (à mettre à jour chaque année)
+    "2026-04-18",  # Vendredi Saint
+    "2026-04-21",  # Lundi de Pâques
+    "2026-05-14",  # Ascension
+    "2026-05-25",  # Lundi de Pentecôte
+    "2026-05-27",  # Fête Nationale (27 mai CI)
+    "2026-06-05",  # Aïd el-Fitr (approx)
+    # 2025
+    "2025-04-21",  # Lundi de Pâques
+    "2025-05-29",  # Ascension
+    "2025-06-09",  # Lundi de Pentecôte
+}
+
+def is_market_open(date_str=None):
+    """Vérifie si le marché BRVM est ouvert (lun-ven, hors fériés)."""
+    from datetime import datetime
+    d = datetime.strptime(date_str or TODAY, "%Y-%m-%d")
+    # Weekend
+    if d.weekday() >= 5:
+        return False
+    # Jours fériés
+    mmdd = d.strftime("%m-%d")
+    yyyymmdd = d.strftime("%Y-%m-%d")
+    if mmdd in JOURS_FERIES or yyyymmdd in JOURS_FERIES:
+        return False
+    return True
+
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 
 # Date cible
@@ -526,6 +567,13 @@ def scrape_from_html():
 def main():
     print("BRVM Daily Updater - " + TODAY)
     print("=" * 50)
+    if not is_market_open():
+        print(f"Marche BRVM ferme le {TODAY} (weekend ou ferie) — skip cours.")
+        try: scrape_indices()
+        except: pass
+        try: scrape_news()
+        except: pass
+        sys.exit(0)
     # Supprimer les données existantes du jour (peut être corrompues)
     delete_date_prices(TODAY)
     print("\n[1/2] Scraping HTML brvm.org (source principale)...")
