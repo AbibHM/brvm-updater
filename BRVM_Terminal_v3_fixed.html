@@ -650,7 +650,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
 .bull-key .reco-cell .l{color:#fff8e0}
 .bull-key .reco-cell .v{color:#fff;font-size:18px}
 
-.bull-section{margin:20px 0;page-break-inside:avoid}
+.bull-section{margin:20px 0;page-break-inside:avoid;break-inside:avoid}.bull-section:has(.bull-thesis){page-break-after:avoid;break-after:avoid}
 .bull-section .h{
   background:#FF8000;color:#fff;padding:5px 10px;font-size:12px;font-weight:700;
   letter-spacing:1.5px;margin-bottom:8px;
@@ -4141,7 +4141,7 @@ function exportBulletin(){
     .bull-hdr .h2,.bull-hdr .conf,.bull-hdr .date-big,.bull-hdr .rang { color:#555 !important; }
     .bull-name { color:#111 !important; font-size:22px !important; font-weight:bold; }
 
-    .bull-section { border:1px solid #ddd !important; margin-bottom:8px !important; page-break-inside:avoid; }
+    .bull-section { border:1px solid #ddd !important; margin-bottom:8px !important; page-break-inside:avoid; break-inside:avoid; } .bull-section:has(.bull-thesis) { page-break-after:avoid !important; break-after:avoid !important; }
     .bull-section .h { background:#f0f0f0 !important; color:#cc6600 !important; border-bottom:1px solid #ddd !important; }
     .bull-section .num { background:#cc6600 !important; color:#fff !important; }
 
