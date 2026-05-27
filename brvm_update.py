@@ -422,27 +422,56 @@ def upsert_prices(rows):
     return inserted
 
 def update_meta(rows):
-    """Met a jour brvm_meta avec last_updated, last_close, last_volume pour chaque ticker."""
+    """Met a jour brvm_meta avec last_updated, last_close, last_volume, change_pct pour chaque ticker."""
     if not rows:
         return
     now = datetime.now(timezone.utc).isoformat()
+
+    # Récupérer les closes de la séance précédente en une seule requête
+    tickers_list = ",".join(r["ticker"] for r in rows)
+    prev_close = {}
+    try:
+        # Trouver la date de séance précédente (avant TODAY)
+        prev_url = (SUPABASE_URL + "/rest/v1/brvm_prices"
+                    + "?ticker=in.(" + tickers_list + ")"
+                    + "&date=lt." + TODAY
+                    + "&select=ticker,date,close"
+                    + "&order=date.desc"
+                    + "&limit=" + str(len(rows) * 2))
+        prev_resp = requests.get(prev_url, headers=HEADERS_SB, timeout=15)
+        if prev_resp.ok:
+            # Garder uniquement le close le plus récent par ticker
+            for r in prev_resp.json():
+                if r["ticker"] not in prev_close:
+                    prev_close[r["ticker"]] = r["close"]
+    except Exception as e:
+        print("  Avertissement: impossible de recuperer closes precedents: " + str(e))
+
     ok = 0
     for row in rows:
-        url = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=eq." + row["ticker"]
+        ticker = row["ticker"]
+        close_today = row.get("close") or 0
+        close_prev  = prev_close.get(ticker)
+        if close_prev and close_prev > 0 and close_today > 0:
+            change_pct = round((close_today - close_prev) / close_prev * 100, 2)
+        else:
+            change_pct = 0.0
+
+        url = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=eq." + ticker
         payload = {
             "last_updated": now,
-            "last_close": row.get("close"),
-            "last_volume": row.get("volume", 0),
+            "last_close":   close_today,
+            "last_volume":  row.get("volume", 0),
+            "change_pct":   change_pct,
         }
         resp = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
         if resp.status_code in (200, 204):
             ok += 1
         else:
-            # Ligne inexistante -> INSERT
             requests.post(
                 SUPABASE_URL + "/rest/v1/brvm_meta",
                 headers=HEADERS_SB,
-                json={"ticker": row["ticker"], **payload, "total_rows": 0},
+                json={"ticker": ticker, **payload, "total_rows": 0},
                 timeout=10
             )
     print("brvm_meta mis a jour: " + str(ok) + "/" + str(len(rows)) + " tickers")
