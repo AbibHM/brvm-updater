@@ -422,31 +422,59 @@ def upsert_prices(rows):
     return inserted
 
 def update_meta(rows):
-    """Met a jour brvm_meta avec last_updated, last_close, last_volume, change_pct pour chaque ticker."""
+    """Met a jour brvm_meta avec last_updated, last_close, last_volume,
+       change_pct (variation intraday J) et change_pct_prev (variation J-1/J)."""
     if not rows:
         return
     now = datetime.now(timezone.utc).isoformat()
 
-    # change_pct = (close_J - cours_ref_J) / cours_ref_J
-    # Le cours de référence dans le BOC = open de la séance (= close officiel J-1)
+    # --- Variation J-1/J : récupérer le close de la séance précédente ---
+    tickers_csv = ",".join(r["ticker"] for r in rows)
+    prev_close = {}
+    try:
+        url_prev = (SUPABASE_URL + "/rest/v1/brvm_prices"
+                    + "?ticker=in.(" + tickers_csv + ")"
+                    + "&date=lt." + TODAY
+                    + "&select=ticker,date,close"
+                    + "&order=date.desc"
+                    + "&limit=" + str(len(rows) * 3))
+        resp_prev = requests.get(url_prev, headers=HEADERS_SB, timeout=15)
+        if resp_prev.ok:
+            for r in resp_prev.json():
+                # Garder uniquement le close le plus récent par ticker
+                if r["ticker"] not in prev_close and r.get("close"):
+                    prev_close[r["ticker"]] = r["close"]
+    except Exception as e:
+        print("  Avertissement closes J-1: " + str(e))
+
     ok = 0
     for row in rows:
-        ticker = row["ticker"]
+        ticker      = row["ticker"]
         close_today = row.get("close") or 0
         open_today  = row.get("open")  or 0
-        # change_pct = variation de la séance = (close - cours_ref) / cours_ref
-        # Le cours de référence dans le BOC = open de la séance (close officiel J-1)
+        close_prev  = prev_close.get(ticker) or 0
+
+        # Variation intraday (BOC) : (close_J - open_J) / open_J
+        # open_J = cours de référence = close officiel J-1
         if open_today > 0 and close_today > 0:
             change_pct = round((close_today - open_today) / open_today * 100, 2)
         else:
             change_pct = 0.0
 
+        # Variation inter-séances : (close_J - close_J-1) / close_J-1
+        # Pertinent pour suivre la tendance sur plusieurs jours
+        if close_prev > 0 and close_today > 0:
+            change_pct_prev = round((close_today - close_prev) / close_prev * 100, 2)
+        else:
+            change_pct_prev = 0.0
+
         url = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=eq." + ticker
         payload = {
-            "last_updated": now,
-            "last_close":   close_today,
-            "last_volume":  row.get("volume", 0),
-            "change_pct":   change_pct,
+            "last_updated":     now,
+            "last_close":       close_today,
+            "last_volume":      row.get("volume", 0),
+            "change_pct":       change_pct,       # Var J  (intraday BOC)
+            "change_pct_prev":  change_pct_prev,  # Var J-1/J (inter-séances)
         }
         resp = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
         if resp.status_code in (200, 204):
