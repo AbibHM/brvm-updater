@@ -1840,7 +1840,7 @@ async function fetchTickers(){
   // et met à jour le tableau TICKERS dynamiquement
   try {
     // Récupérer prix/volume depuis brvm_meta (tous sauf les indices)
-    const urlMeta = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=not.like.BRVM-*&select=ticker,last_close,last_volume,change_pct&order=ticker";
+    const urlMeta = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=not.like.BRVM-*&select=ticker,last_close,last_volume,change_pct,change_pct_prev&order=ticker";
     // Récupérer name/sector/country depuis brvm_fundamentals
     const urlFund = SUPABASE_URL + "/rest/v1/brvm_fundamentals?select=ticker,name,sector,country&order=ticker";
 
@@ -1866,6 +1866,7 @@ async function fetchTickers(){
         if(row.last_close) existing.p = row.last_close;
         if(row.last_volume != null) existing.vol = row.last_volume;
         if(row.change_pct != null) existing.var = row.change_pct;
+        if(row.change_pct_prev != null) existing.vp = row.change_pct_prev;
         // Mettre à jour name/sector/country si disponibles dans fund
         if(f.name)    existing.n   = f.name;
         if(f.sector)  existing.sec = f.sector;
@@ -1880,7 +1881,8 @@ async function fetchTickers(){
           sec: f.sector  || "—",
           cty: f.country || "—",
           p:   row.last_close,
-          v:   row.change_pct || 0,
+          v:   row.change_pct      || 0,
+          vp:  row.change_pct_prev || 0,
           vol: row.last_volume || 0,
           cap: null,
         };
@@ -2710,7 +2712,7 @@ function renderWatchlist(){
   const rows = wl.list.map(s => tkFind(s)).filter(Boolean);
   $("wlTable").innerHTML = `
     <thead><tr>
-      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>Vol</th><th>P/E</th><th>DY</th><th>ROE</th><th>Cap (M)</th><th>Alerte</th>
+      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>Var/J-1</th><th>Vol</th><th>P/E</th><th>DY</th><th>ROE</th><th>Cap (M)</th><th>Alerte</th>
     </tr></thead>
     <tbody>${rows.map(t=>{
       const a = ALERTS.find(x=>x.s===t.s);
@@ -2720,6 +2722,7 @@ function renderWatchlist(){
         <td>${t.sec}</td><td>${t.cty}</td>
         <td>${fmt(t.p)}</td>
         <td class="${cls(t.v)}">${pct(t.v)}</td>
+        <td class="${cls(t.vp||0)}">${pct(t.vp||0)}</td>
         <td>${fmt(t.vol)}</td>
         <td>${fmt2(t.pe)}</td>
         <td>${fmt2(t.dy)}%</td>
@@ -2771,7 +2774,7 @@ function applyScreen(){
   $("scrCount").textContent = filt.length;
   $("scrTable").innerHTML = `
     <thead><tr>
-      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>P/E</th><th>P/B</th><th>DY</th><th>ROE</th><th>Cap (M)</th>
+      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>Var/J-1</th><th>P/E</th><th>P/B</th><th>DY</th><th>ROE</th><th>Cap (M)</th>
     </tr></thead>
     <tbody>${filt.map(t=>`
       <tr onclick="openTicker('${t.s}')">
@@ -2779,6 +2782,7 @@ function applyScreen(){
         <td>${t.sec}</td><td>${t.cty}</td>
         <td>${fmt(t.p)}</td>
         <td class="${cls(t.v)}">${pct(t.v)}</td>
+        <td class="${cls(t.vp||0)}">${pct(t.vp||0)}</td>
         <td>${fmt2(t.pe)}</td>
         <td>${fmt2(t.pb)}</td>
         <td>${fmt2(t.dy)}%</td>
@@ -5296,6 +5300,8 @@ async function refreshData(){
           t.p   = last.close;
           t.vol = last.volume;
           if(prev.close > 0) t.v = +((last.close - prev.close)/prev.close*100).toFixed(2);
+                  const prev2 = data[data.length - 3];
+                  if(prev2 && prev2.close > 0) t.vp = +((last.close - prev2.close)/prev2.close*100).toFixed(2);
           normalize(t); updated++;
         } else { failed++; }
       }catch(e){ failed++; }
