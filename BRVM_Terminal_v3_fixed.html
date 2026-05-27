@@ -2476,7 +2476,7 @@ function renderMarkets(){
   // Top movers
   const sorted = [...TICKERS].sort((a,b)=>b.v-a.v);
   const top3 = (arr, hdr) => `
-    <thead><tr><th>Ticker</th><th>Cours</th><th>Var %</th><th>Vol</th></tr></thead>
+    <thead><tr><th>Ticker</th><th>Cours</th><th>Var J</th><th>Var/J-1</th><th>Vol</th></tr></thead>
     <tbody>${arr.slice(0,8).map(t=>`
       <tr onclick="openTicker('${t.s}')"><td><span class="sym">${t.s}</span><span class="name">${t.n}</span></td>
       <td>${fmt(t.p)}</td><td class="${cls(t.v)}">${pct(t.v)}</td><td>${fmt(t.vol)}</td></tr>`).join("")}</tbody>`;
