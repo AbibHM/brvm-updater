@@ -427,33 +427,17 @@ def update_meta(rows):
         return
     now = datetime.now(timezone.utc).isoformat()
 
-    # Récupérer les closes de la séance précédente en une seule requête
-    tickers_list = ",".join(r["ticker"] for r in rows)
-    prev_close = {}
-    try:
-        # Trouver la date de séance précédente (avant TODAY)
-        prev_url = (SUPABASE_URL + "/rest/v1/brvm_prices"
-                    + "?ticker=in.(" + tickers_list + ")"
-                    + "&date=lt." + TODAY
-                    + "&select=ticker,date,close"
-                    + "&order=date.desc"
-                    + "&limit=" + str(len(rows) * 2))
-        prev_resp = requests.get(prev_url, headers=HEADERS_SB, timeout=15)
-        if prev_resp.ok:
-            # Garder uniquement le close le plus récent par ticker
-            for r in prev_resp.json():
-                if r["ticker"] not in prev_close:
-                    prev_close[r["ticker"]] = r["close"]
-    except Exception as e:
-        print("  Avertissement: impossible de recuperer closes precedents: " + str(e))
-
+    # change_pct = (close_J - cours_ref_J) / cours_ref_J
+    # Le cours de référence dans le BOC = open de la séance (= close officiel J-1)
     ok = 0
     for row in rows:
         ticker = row["ticker"]
         close_today = row.get("close") or 0
-        close_prev  = prev_close.get(ticker)
-        if close_prev and close_prev > 0 and close_today > 0:
-            change_pct = round((close_today - close_prev) / close_prev * 100, 2)
+        open_today  = row.get("open")  or 0
+        # change_pct = variation de la séance = (close - cours_ref) / cours_ref
+        # Le cours de référence dans le BOC = open de la séance (close officiel J-1)
+        if open_today > 0 and close_today > 0:
+            change_pct = round((close_today - open_today) / open_today * 100, 2)
         else:
             change_pct = 0.0
 
