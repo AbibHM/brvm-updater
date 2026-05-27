@@ -2479,7 +2479,7 @@ function renderMarkets(){
     <thead><tr><th>Ticker</th><th>Cours</th><th>Var J</th><th>Var/J-1</th><th>Vol</th></tr></thead>
     <tbody>${arr.slice(0,8).map(t=>`
       <tr onclick="openTicker('${t.s}')"><td><span class="sym">${t.s}</span><span class="name">${t.n}</span></td>
-      <td>${fmt(t.p)}</td><td class="${cls(t.v)}">${pct(t.v)}</td><td>${fmt(t.vol)}</td></tr>`).join("")}</tbody>`;
+      <td>${fmt(t.p)}</td><td class="${cls(t.v)}">${pct(t.v)}</td><td class="${cls(t.vp||0)}">${pct(t.vp||0)}</td><td>${fmt(t.vol)}</td></tr>`).join("")}</tbody>`;
   $("topGain").innerHTML = top3(sorted, "g");
   $("topLoss").innerHTML = top3([...sorted].reverse(), "l");
   const byVol = [...TICKERS].sort((a,b)=>b.vol-a.vol);
