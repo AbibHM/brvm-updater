@@ -574,19 +574,17 @@ def main():
         try: scrape_news()
         except: pass
         sys.exit(0)
-    # Supprimer les données existantes du jour (peut être corrompues)
-    delete_date_prices(TODAY)
     print("\n[1/2] Scraping HTML brvm.org (source principale)...")
     rows = scrape_from_html()
     pdf_source = None
-    if not rows:
-        print("\n[2/2] Fallback: Bulletin Officiel de la Cote (PDF)...")
         rows, pdf_source = scrape_from_pdf()
     print(f"\n{len(rows)} tickers recuperes")
     if not rows:
         print("Aucune donnee disponible. Repassage au prochain cron.")
         sys.exit(0)
-    print("Envoi vers Supabase...")
+    # Supprimer les données existantes uniquement si scraping réussi
+    delete_date_prices(TODAY)
+print("Envoi vers Supabase...")
     inserted = upsert_prices(rows)
     print(f"{inserted}/{len(rows)} lignes upsertees")
     update_meta(rows)
