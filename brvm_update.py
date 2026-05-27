@@ -564,9 +564,40 @@ def scrape_from_html():
         rows.append({"ticker": ticker, "date": TODAY, "open": open_, "high": high, "low": low, "close": close, "volume": volume})
     return rows
 
+def ensure_fundamentals_base():
+    """Upsert les tickers manquants dans brvm_fundamentals (name/sector/country seulement).
+    N'écrase pas les données existantes grâce à merge-duplicates."""
+    BASE_INFO = [
+        {"ticker": "CROWN", "name": "Crown Siem CI",       "sector": "Industrie",    "country": "Côte d'Ivoire"},
+        {"ticker": "MOVIS", "name": "Movis CI",             "sector": "Transport",    "country": "Côte d'Ivoire"},
+        {"ticker": "SVOC",  "name": "Movis CI",             "sector": "Transport",    "country": "Côte d'Ivoire"},
+        {"ticker": "TTRC",  "name": "Tractafric Motors CI", "sector": "Distribution", "country": "Côte d'Ivoire"},
+    ]
+    # Récupérer les tickers déjà présents
+    try:
+        existing = requests.get(
+            SUPABASE_URL + "/rest/v1/brvm_fundamentals?select=ticker",
+            headers=HEADERS_SB, timeout=10
+        ).json()
+        existing_tickers = {r["ticker"] for r in existing} if isinstance(existing, list) else set()
+        to_insert = [r for r in BASE_INFO if r["ticker"] not in existing_tickers]
+        if to_insert:
+            r = requests.post(
+                SUPABASE_URL + "/rest/v1/brvm_fundamentals",
+                headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
+                json=to_insert, timeout=10
+            )
+            print(f"brvm_fundamentals base: {len(to_insert)} tickers ajoutés ({[r['ticker'] for r in to_insert]})")
+        else:
+            print("brvm_fundamentals base: OK (aucun ticker manquant)")
+    except Exception as e:
+        print(f"brvm_fundamentals base: erreur — {e}")
+
+
 def main():
     print("BRVM Daily Updater - " + TODAY)
     print("=" * 50)
+    ensure_fundamentals_base()
     if not is_market_open():
         print(f"Marche BRVM ferme le {TODAY} (weekend ou ferie) — skip cours.")
         try: scrape_indices()
