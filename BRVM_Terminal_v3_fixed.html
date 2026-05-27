@@ -4104,7 +4104,7 @@ function exportBulletin(){
     try {
       for(const rule of sheet.cssRules){
         const t = rule.cssText;
-        if(t.includes(".bull") || t.includes(".bulletin") || t.includes("@page") ||
+        if(t.includes(".bull") || t.includes(".bull-") || t.includes(".bulletin") || t.includes("@page") ||
            t.includes(".bar") || t.includes(".reco-") || t.includes(".risk-") ||
            t.includes(".peer") || t.includes(".sec-chip") || t.includes(".tk-chip") ||
            t.includes(".val-") || t.includes(".kv-")){
