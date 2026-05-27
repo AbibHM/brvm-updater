@@ -4090,17 +4090,48 @@ function exportBulletin() {
   const bp = document.getElementById('bulletinPage');
   if (!bp) return;
   const ticker = window._curTicker || 'BULLETIN';
-  // Charger html2pdf si pas déjà chargé
+
+  // Sauvegarder styles originaux
+  const origWidth = bp.style.width;
+  const origMaxWidth = bp.style.maxWidth;
+  const origPadding = bp.style.padding;
+  const origBoxShadow = bp.style.boxShadow;
+  const origMargin = bp.style.margin;
+  const origFontSize = bp.style.fontSize;
+
+  // Appliquer styles A4 (794px = largeur utile A4 à 96dpi avec marges 10mm)
+  bp.style.width = '754px';
+  bp.style.maxWidth = '754px';
+  bp.style.padding = '20px 24px';
+  bp.style.boxShadow = 'none';
+  bp.style.margin = '0';
+  bp.style.fontSize = '10px';
+
   function doExport() {
     const opt = {
-      margin: [10, 10, 10, 10],
+      margin: 8,
       filename: 'BRVM_Research_' + ticker + '.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, width: bp.offsetWidth },
+      image: { type: 'jpeg', quality: 0.97 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        width: bp.offsetWidth,
+        windowWidth: bp.offsetWidth
+      },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-    html2pdf().set(opt).from(bp).save();
+    html2pdf().set(opt).from(bp).save().then(() => {
+      // Restaurer après export
+      bp.style.width = origWidth;
+      bp.style.maxWidth = origMaxWidth;
+      bp.style.padding = origPadding;
+      bp.style.boxShadow = origBoxShadow;
+      bp.style.margin = origMargin;
+      bp.style.fontSize = origFontSize;
+    });
   }
+
   if (typeof html2pdf === 'undefined') {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
