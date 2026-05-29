@@ -641,7 +641,6 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
 .bull-key{
   display:grid;grid-template-columns:repeat(5,1fr);gap:12px;
   border:1px solid #ccc;padding:14px;background:#fafafa;margin-bottom:14px;
-  page-break-after:avoid;
 }
 .bull-key .cell{display:flex;flex-direction:column;gap:3px}
 .bull-key .cell .l{font-size:9px;letter-spacing:1px;color:#666;text-transform:uppercase}
@@ -651,7 +650,7 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
 .bull-key .reco-cell .l{color:#fff8e0}
 .bull-key .reco-cell .v{color:#fff;font-size:18px}
 
-.bull-section{margin:20px 0;page-break-inside:avoid}.bull-section:has(.bull-thesis){page-break-after:avoid}
+.bull-section{margin:20px 0;page-break-inside:avoid}
 .bull-section .h{
   background:#FF8000;color:#fff;padding:5px 10px;font-size:12px;font-weight:700;
   letter-spacing:1.5px;margin-bottom:8px;
@@ -1840,7 +1839,7 @@ async function fetchTickers(){
   // et met à jour le tableau TICKERS dynamiquement
   try {
     // Récupérer prix/volume depuis brvm_meta (tous sauf les indices)
-    const urlMeta = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=not.like.BRVM-*&select=ticker,last_close,last_volume,change_pct,change_pct_prev&order=ticker";
+    const urlMeta = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=not.like.BRVM-*&select=ticker,last_close,last_volume,change_pct,var_intra&order=ticker";
     // Récupérer name/sector/country depuis brvm_fundamentals
     const urlFund = SUPABASE_URL + "/rest/v1/brvm_fundamentals?select=ticker,name,sector,country&order=ticker";
 
@@ -1865,8 +1864,8 @@ async function fetchTickers(){
         // Mettre à jour le prix live
         if(row.last_close) existing.p = row.last_close;
         if(row.last_volume != null) existing.vol = row.last_volume;
-        if(row.change_pct != null) existing.var = row.change_pct;
-        if(row.change_pct_prev != null) existing.vp = row.change_pct_prev;
+        if(row.change_pct != null) existing.v   = row.change_pct;
+        if(row.var_intra  != null) existing.varIntra = row.var_intra;
         // Mettre à jour name/sector/country si disponibles dans fund
         if(f.name)    existing.n   = f.name;
         if(f.sector)  existing.sec = f.sector;
@@ -1881,9 +1880,9 @@ async function fetchTickers(){
           sec: f.sector  || "—",
           cty: f.country || "—",
           p:   row.last_close,
-          v:   row.change_pct      || 0,
-          vp:  row.change_pct_prev || 0,
-          vol: row.last_volume || 0,
+          v:        row.change_pct  || 0,
+          varIntra: row.var_intra   || 0,
+          vol:      row.last_volume || 0,
           cap: null,
         };
         normalize(t);
@@ -2476,10 +2475,10 @@ function renderMarkets(){
   // Top movers
   const sorted = [...TICKERS].sort((a,b)=>b.v-a.v);
   const top3 = (arr, hdr) => `
-    <thead><tr><th>Ticker</th><th>Cours</th><th>Var J</th><th>Var/J-1</th><th>Vol</th></tr></thead>
+    <thead><tr><th>Ticker</th><th>Cours</th><th>Var %</th><th>Vol</th></tr></thead>
     <tbody>${arr.slice(0,8).map(t=>`
       <tr onclick="openTicker('${t.s}')"><td><span class="sym">${t.s}</span><span class="name">${t.n}</span></td>
-      <td>${fmt(t.p)}</td><td class="${cls(t.v)}">${pct(t.v)}</td><td class="${cls(t.vp||0)}">${pct(t.vp||0)}</td><td>${fmt(t.vol)}</td></tr>`).join("")}</tbody>`;
+      <td>${fmt(t.p)}</td><td class="${cls(t.v)}">${pct(t.v)}</td><td>${fmt(t.vol)}</td></tr>`).join("")}</tbody>`;
   $("topGain").innerHTML = top3(sorted, "g");
   $("topLoss").innerHTML = top3([...sorted].reverse(), "l");
   const byVol = [...TICKERS].sort((a,b)=>b.vol-a.vol);
@@ -2712,7 +2711,7 @@ function renderWatchlist(){
   const rows = wl.list.map(s => tkFind(s)).filter(Boolean);
   $("wlTable").innerHTML = `
     <thead><tr>
-      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>Var/J-1</th><th>Vol</th><th>P/E</th><th>DY</th><th>ROE</th><th>Cap (M)</th><th>Alerte</th>
+      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>Vol</th><th>P/E</th><th>DY</th><th>ROE</th><th>Cap (M)</th><th>Alerte</th>
     </tr></thead>
     <tbody>${rows.map(t=>{
       const a = ALERTS.find(x=>x.s===t.s);
@@ -2722,7 +2721,6 @@ function renderWatchlist(){
         <td>${t.sec}</td><td>${t.cty}</td>
         <td>${fmt(t.p)}</td>
         <td class="${cls(t.v)}">${pct(t.v)}</td>
-        <td class="${cls(t.vp||0)}">${pct(t.vp||0)}</td>
         <td>${fmt(t.vol)}</td>
         <td>${fmt2(t.pe)}</td>
         <td>${fmt2(t.dy)}%</td>
@@ -2774,7 +2772,7 @@ function applyScreen(){
   $("scrCount").textContent = filt.length;
   $("scrTable").innerHTML = `
     <thead><tr>
-      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>Var/J-1</th><th>P/E</th><th>P/B</th><th>DY</th><th>ROE</th><th>Cap (M)</th>
+      <th>Ticker</th><th>Secteur</th><th>Pays</th><th>Cours</th><th>Var J</th><th>P/E</th><th>P/B</th><th>DY</th><th>ROE</th><th>Cap (M)</th>
     </tr></thead>
     <tbody>${filt.map(t=>`
       <tr onclick="openTicker('${t.s}')">
@@ -2782,7 +2780,6 @@ function applyScreen(){
         <td>${t.sec}</td><td>${t.cty}</td>
         <td>${fmt(t.p)}</td>
         <td class="${cls(t.v)}">${pct(t.v)}</td>
-        <td class="${cls(t.vp||0)}">${pct(t.vp||0)}</td>
         <td>${fmt2(t.pe)}</td>
         <td>${fmt2(t.pb)}</td>
         <td>${fmt2(t.dy)}%</td>
@@ -3552,7 +3549,8 @@ async function renderCharts(){
   $("tkSel").textContent = t.s + " — " + t.n;
   $("tkKV").innerHTML = `
     <div class="kv hl"><div class="k">Cours</div><div class="v">${fmt(t.p)} F CFA</div></div>
-    <div class="kv"><div class="k">Var jour</div><div class="v ${cls(t.v)}">${pct(t.v)}</div></div>
+    <div class="kv"><div class="k">Var J/J-1</div><div class="v ${cls(t.v)}">${pct(t.v)}</div></div>
+    <div class="kv"><div class="k">Var intra-J</div><div class="v ${cls(t.varIntra||0)}">${pct(t.varIntra||0)}</div></div>
     <div class="kv"><div class="k">Volume (séance)</div><div class="v">${fmt(t.vol)}</div></div>
     <div class="kv"><div class="k">Capitalisation</div><div class="v">${fmt(t.cap)} M F CFA</div></div>
     <div class="kv"><div class="k">Enterprise Value</div><div class="v">${fmt(t.ev||t.cap*1.05)} M F CFA</div></div>
@@ -4090,60 +4088,107 @@ function renderBulletin(t, val, score, r){
 }
 
 /* ── Export PDF ─────────────────────────────────────────── */
-function exportBulletin() {
-  const bp = document.getElementById('bulletinPage');
-  if (!bp) return;
-  const ticker = window._curTicker || 'BULLETIN';
+function exportBulletin(){
+  const t = tkFind(_curTicker);
+  if(!t){ alert("Aucun ticker sélectionné. Tapez un ticker (ex: NSBC GO) puis cliquez BULL."); return; }
 
-  // Sauvegarder styles originaux
-  const origWidth = bp.style.width;
-  const origMaxWidth = bp.style.maxWidth;
-  const origPadding = bp.style.padding;
-  const origBoxShadow = bp.style.boxShadow;
-  const origMargin = bp.style.margin;
-  const origFontSize = bp.style.fontSize;
-
-  // Appliquer styles A4 (794px = largeur utile A4 à 96dpi avec marges 10mm)
-  bp.style.width = '754px';
-  bp.style.maxWidth = '754px';
-  bp.style.padding = '20px 24px';
-  bp.style.boxShadow = 'none';
-  bp.style.margin = '0';
-  bp.style.fontSize = '10px';
-
-  function doExport() {
-    const opt = {
-      margin: 8,
-      filename: 'BRVM_Research_' + ticker + '.pdf',
-      image: { type: 'jpeg', quality: 0.97 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        width: bp.offsetWidth,
-        windowWidth: window.innerWidth
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    html2pdf().set(opt).from(bp).save().then(() => {
-      // Restaurer après export
-      bp.style.width = origWidth;
-      bp.style.maxWidth = origMaxWidth;
-      bp.style.padding = origPadding;
-      bp.style.boxShadow = origBoxShadow;
-      bp.style.margin = origMargin;
-      bp.style.fontSize = origFontSize;
-    });
+  if(!$("bulletinPage").innerHTML.trim()) renderCharts();
+  const html = $("bulletinPage").innerHTML;
+  if(!html || !html.trim()){
+    alert("Le bulletin n\'a pas pu être généré. Vérifiez que le ticker est chargé.");
+    return;
   }
 
-  if (typeof html2pdf === 'undefined') {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-    s.onload = doExport;
-    document.head.appendChild(s);
-  } else {
-    doExport();
+  // Extraire TOUT le CSS de la page pour la popup
+  let allCSS = "";
+  for(const sheet of document.styleSheets){
+    try {
+      for(const rule of sheet.cssRules){ allCSS += rule.cssText + "\n"; }
+    } catch(e){}
   }
+
+  const popup = window.open("", `BRVM_Research_${_curTicker}`,
+    "width=900,height=1100,scrollbars=yes,resizable=yes");
+
+  popup.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>BRVM Research — ${_curTicker} — Joel Thibaut</title>
+  <style>
+    @page { size:A4; margin:15mm 12mm; }
+    * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+    /* Variables impression — fond blanc, couleurs lisibles */
+    :root {
+      --orange-bright:#cc6600; --orange:#cc6600; --orange-dim:#cc6600;
+      --cyan:#006688; --green:#007744; --red:#cc0000; --yellow:#886600;
+      --bg-deep:#fff; --bg-panel:#fff; --bg-panel-2:#f5f5f5;
+      --white:#111; --dim:#555; --border:#ccc;
+    }
+    body { font-family:'Courier New',Courier,monospace; font-size:11px;
+           background:#fff; color:#111; margin:0; padding:16px; }
+
+    /* CSS complet du terminal */
+    ${allCSS}
+
+    /* Overrides finaux — tout en blanc/noir pour impression */
+    body,.bulletin,.bull-section,.bull-hdr,.bull-key,
+    .bull-meta-row,.bull-3col,.fund-col,.risk-dim,td,th
+      { background:#fff !important; color:#111 !important; }
+
+    .bulletin { max-width:100% !important; padding:0 !important; box-shadow:none !important; }
+
+    .bull-hdr { border-bottom:2px solid #333 !important; padding:8px 0 12px !important; display:grid !important; }
+    .bull-hdr .h1 { font-size:13px !important; color:#cc6600 !important; }
+    .bull-hdr .h2,.bull-hdr .conf,.bull-hdr .date-big,.bull-hdr .rang { color:#555 !important; }
+    .bull-name { color:#111 !important; font-size:22px !important; font-weight:bold; }
+
+    .bull-section { border:1px solid #ddd !important; margin-bottom:8px !important; page-break-inside:avoid; }
+    .bull-section .h { background:#f0f0f0 !important; color:#cc6600 !important; border-bottom:1px solid #ddd !important; }
+    .bull-section .num { background:#cc6600 !important; color:#fff !important; }
+
+    .bull-key .reco-cell,.bull-key .cell { background:#f8f8f8 !important; border:1px solid #ddd !important; }
+    .bull-key .l { color:#555 !important; }
+    .bull-key .v { color:#111 !important; font-weight:bold; }
+
+    /* Recommandations */
+    [class*="VENDRE"] .v, .reco-sell .v { color:#cc0000 !important; }
+    [class*="ACHAT"]  .v, .reco-buy  .v { color:#007700 !important; }
+    [class*="CONSERVER"] .v            { color:#886600 !important; }
+
+    /* Tableaux */
+    table { width:100%; border-collapse:collapse; }
+    th { background:#f0f0f0 !important; color:#333 !important; border:1px solid #ccc !important; padding:3px 6px; font-size:10px; }
+    td { border:1px solid #ddd !important; padding:3px 6px; font-size:10px; color:#111 !important; background:#fff !important; }
+    tr.pondere td { background:#f0f0f0 !important; font-weight:bold; }
+
+    /* Chips */
+    .sec-chip,.cty-chip,.tk-chip { background:#f0f0f0 !important; color:#333 !important; border:1px solid #ccc !important; }
+
+    /* Scorecard */
+    .risk-bar { background:#e0e0e0 !important; }
+    .risk-bar-fill { background:#cc6600 !important; }
+
+    /* FVR */
+    .fvr-force { color:#007700 !important; }
+    .fvr-vigil { color:#886600 !important; }
+    .fvr-risque,.fvr-risk { color:#cc0000 !important; }
+
+    /* Cacher non-imprimables */
+    button,.bull-actions,.print-hint,#fundHistory,#fundHistChart { display:none !important; }
+
+    @media print { body { background:#fff !important; } }
+  </style>
+</head>
+<body>
+  <div class="bulletin">${html}</div>
+  <script>
+    window.onload = function(){ window.print(); }
+  <\/script>
+</body>
+</html>`);
+  popup.document.close();
 }
 
 /* ── Toggle chart mode (ligne / chandelier) ──────────────── */
@@ -5300,8 +5345,6 @@ async function refreshData(){
           t.p   = last.close;
           t.vol = last.volume;
           if(prev.close > 0) t.v = +((last.close - prev.close)/prev.close*100).toFixed(2);
-                  const prev2 = data[data.length - 3];
-                  if(prev2 && prev2.close > 0) t.vp = +((last.close - prev2.close)/prev2.close*100).toFixed(2);
           normalize(t); updated++;
         } else { failed++; }
       }catch(e){ failed++; }
