@@ -1799,12 +1799,12 @@ async function fetchCapStats(){
     let valTx = 0;
     try{
       const today = new Date().toISOString().slice(0,10);
-      const urlTx = SUPABASE_URL+"/rest/v1/brvm_prices?date=eq."+today+"&select=close,volume";
+      const urlTx = SUPABASE_URL+"/rest/v1/brvm_prices?select=close,volume,date&order=date.desc&limit=60";
       const rTx = await fetch(urlTx, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
       if(rTx.ok){
         const txRows = await rTx.json();
         if(Array.isArray(txRows) && txRows.length > 0){
-          valTx = txRows.reduce((s,r) => s + (r.close||0)*(r.volume||0), 0);
+          const lastDate = txRows[0].date; const lastRows = txRows.filter(r => r.date === lastDate); valTx = lastRows.reduce((s,r) => s + (r.close||0)*(r.volume||0), 0);
         }
       }
     }catch(e){}
@@ -5171,7 +5171,7 @@ function _cacheSlot(){
   const now = new Date();
   // Heure en UTC+0 (BRVM = GMT, séance 09h-15h30, GitHub Actions ~16h30 GMT)
   const hhmm = now.getUTCHours() * 100 + now.getUTCMinutes();
-  const slot  = hhmm >= 1630 ? 'pm' : 'am';
+  const slot  = hhmm >= 2330 ? 'pm2' : hhmm >= 1830 ? 'pm1' : 'pre';
   const date  = now.toISOString().slice(0,10);
   return `${date}_${slot}`;
 }
@@ -5246,7 +5246,7 @@ async function fetchRealHistory(sym){
     const dow   = now.getUTCDay(); // 0=dim, 6=sam
     const isWeekday = dow >= 1 && dow <= 5;
     // Fenêtre 16h30-16h45 GMT, jours ouvrés seulement
-    if(isWeekday && hhmm >= 1630 && hhmm <= 1645){
+    if(isWeekday && (hhmm >= 1830 && hhmm <= 1845) || (hhmm >= 2330 && hhmm <= 2345)){
       // Vider le cache mémoire → prochain renderCharts() fetche les cours du jour
       Object.keys(_histMem).forEach(k => delete _histMem[k]);
       // Vider aussi les clés localStorage "am" du jour (garder "pm" qui sera le nouveau)
