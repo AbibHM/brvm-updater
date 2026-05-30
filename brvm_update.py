@@ -455,26 +455,27 @@ def update_meta(rows):
         close_prev  = prev_close.get(ticker) or 0
 
         # Variation intraday (BOC) : (close_J - open_J) / open_J
-        # open_J = cours de référence = close officiel J-1
+        # Représente le mouvement pendant la séance du jour
         if open_today > 0 and close_today > 0:
-            change_pct = round((close_today - open_today) / open_today * 100, 2)
+            var_intra = round((close_today - open_today) / open_today * 100, 2)
         else:
-            change_pct = 0.0
+            var_intra = 0.0
 
         # Variation inter-séances : (close_J - close_J-1) / close_J-1
-        # Pertinent pour suivre la tendance sur plusieurs jours
+        # C'est la variation officielle BRVM affichée dans le terminal (principale)
         if close_prev > 0 and close_today > 0:
-            change_pct_prev = round((close_today - close_prev) / close_prev * 100, 2)
+            change_pct = round((close_today - close_prev) / close_prev * 100, 2)
         else:
-            change_pct_prev = 0.0
+            change_pct = 0.0
 
         url = SUPABASE_URL + "/rest/v1/brvm_meta?ticker=eq." + ticker
         payload = {
             "last_updated":     now,
             "last_close":       close_today,
             "last_volume":      row.get("volume", 0),
-            "change_pct":       change_pct,       # Var J  (intraday BOC)
-            "change_pct_prev":  change_pct_prev,  # Var J-1/J (inter-séances)
+            "change_pct":       change_pct,   # Variation principale : inter-séances (close_J / close_J-1)
+            "var_intra":        var_intra,    # Variation intraday BOC : (close_J - open_J) / open_J
+            "change_pct_prev":  change_pct,  # Alias kept for backward compat
         }
         resp = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
         if resp.status_code in (200, 204):
