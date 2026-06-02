@@ -12,6 +12,10 @@ on:
         required: false
         default: ""
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -51,6 +55,6 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Scraper BRVM echoue - ${date}`,
-              body: `Le scraper na pas pu recuperer les donnees du **${date}**.\n\n**Logs :** ${runUrl}\n\n> Relancer via Actions - BRVM Daily Update - Run workflow avec la date.`,
+              body: `Le scraper na pas pu recuperer les donnees du **${date}**.\n\n**Logs :** ${runUrl}\n\n> Relancer via Actions.`,
               labels: ['bug']
             });
