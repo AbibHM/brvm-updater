@@ -648,7 +648,7 @@ def main():
         except: pass
         sys.exit(0)
     print("\n[1/2] Bulletin Officiel de la Cote PDF (source officielle)...")
-    rows = scrape_from_html()
+    rows, pdf_source = scrape_from_pdf()
     pdf_source = None
     if not rows:
         print("\n[2/2] Fallback: Bulletin Officiel de la Cote (PDF)...")
