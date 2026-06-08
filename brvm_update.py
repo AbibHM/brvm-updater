@@ -4,7 +4,7 @@
 BRVM Daily Updater
 Source : Bulletin Officiel de la Cote (BOC) PDF - brvm.org
 Fallback: scraping HTML brvm.org/fr/cours-actions/0
-"""
+"""h
 import os
 import re
 import sys
@@ -647,7 +647,7 @@ def main():
         try: scrape_news()
         except: pass
         sys.exit(0)
-    print("\n[1/2] Scraping HTML brvm.org (source principale)...")
+    print("\n[1/2] Bulletin Officiel de la Cote PDF (source officielle)...")
     rows = scrape_from_html()
     pdf_source = None
     if not rows:
