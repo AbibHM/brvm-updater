@@ -1,0 +1,56 @@
+name: BRVM Rebuild History
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_from:
+        description: "Date debut (YYYY-MM-DD)"
+        required: false
+        default: "2023-06-01"
+      date_to:
+        description: "Date fin (YYYY-MM-DD)"
+        required: false
+        default: ""
+      skip_existing:
+        description: "Skip dates deja en base (true/false)"
+        required: false
+        default: "true"
+      dry_run:
+        description: "Dry run sans ecrire Supabase (true/false)"
+        required: false
+        default: "false"
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests pdfplumber urllib3
+
+      - name: Run rebuild
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          ARGS="--from ${{ github.event.inputs.date_from }}"
+          if [ -n "${{ github.event.inputs.date_to }}" ]; then
+            ARGS="$ARGS --to ${{ github.event.inputs.date_to }}"
+          fi
+          if [ "${{ github.event.inputs.skip_existing }}" = "true" ]; then
+            ARGS="$ARGS --skip-existing"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python brvm_rebuild_history.py $ARGS
+
