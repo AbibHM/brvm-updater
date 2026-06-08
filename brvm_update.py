@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# v2.1 — fix: change_pct_prev removed, imports corrected
 """
 BRVM Daily Updater
 Source : Bulletin Officiel de la Cote (BOC) PDF - brvm.org
@@ -475,7 +476,6 @@ def update_meta(rows):
             "last_volume":      row.get("volume", 0),
             "change_pct":       change_pct,   # Variation principale : inter-séances (close_J / close_J-1)
             "var_intra":        var_intra,    # Variation intraday BOC : (close_J - open_J) / open_J
-            "change_pct_prev":  change_pct,  # Alias kept for backward compat
         }
         resp = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
         if resp.status_code in (200, 204):
@@ -683,7 +683,6 @@ if __name__ == "__main__":
 # ============================================================
 # SCRAPER RAPPORTS ANNUELS — brvm_financials
 # ============================================================
-import pdfplumber, io
 
 # Mapping ticker → mots-clés dans le nom du fichier PDF
 TICKER_PDF_KEYWORDS = {
