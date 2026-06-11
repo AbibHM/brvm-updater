@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# v2.1 â fix: change_pct_prev removed, imports corrected
+# v2.1 Ã¢ÂÂ fix: change_pct_prev removed, imports corrected
 """
 BRVM Daily Updater
 Source : Bulletin Officiel de la Cote (BOC) PDF - brvm.org
@@ -31,40 +31,40 @@ HEADERS_SB = {
 
 BRVM_SCRAPE_URL = "https://www.brvm.org/fr/cours-actions/0"
 
-# Jours fÃ©riÃ©s BRVM/UEMOA â la bourse est fermÃ©e ces jours-lÃ 
-# Format: "MM-DD" (rÃ©currents chaque annÃ©e) ou "YYYY-MM-DD" (ponctuels)
+# Jours fÃÂ©riÃÂ©s BRVM/UEMOA Ã¢ÂÂ la bourse est fermÃÂ©e ces jours-lÃÂ 
+# Format: "MM-DD" (rÃÂ©currents chaque annÃÂ©e) ou "YYYY-MM-DD" (ponctuels)
 JOURS_FERIES = {
-    # FÃ©riÃ©s rÃ©currents UEMOA
+    # FÃÂ©riÃÂ©s rÃÂ©currents UEMOA
     "01-01",  # Jour de l'An
-    "05-01",  # FÃªte du Travail
+    "05-01",  # FÃÂªte du Travail
     "08-15",  # Assomption
     "11-01",  # Toussaint
-    "12-25",  # NoÃ«l
-    # FÃ©riÃ©s CÃ´te d'Ivoire (pays siÃ¨ge BRVM)
-    "04-07",  # JournÃ©e nationale CI
-    "08-07",  # FÃªte Nationale CI
-    "11-15",  # JournÃ©e Nationale de la Paix CI
-    # FÃ©riÃ©s mobiles 2026 (Ã  mettre Ã  jour chaque annÃ©e)
+    "12-25",  # NoÃÂ«l
+    # FÃÂ©riÃÂ©s CÃÂ´te d'Ivoire (pays siÃÂ¨ge BRVM)
+    "04-07",  # JournÃÂ©e nationale CI
+    "08-07",  # FÃÂªte Nationale CI
+    "11-15",  # JournÃÂ©e Nationale de la Paix CI
+    # FÃÂ©riÃÂ©s mobiles 2026 (ÃÂ  mettre ÃÂ  jour chaque annÃÂ©e)
     "2026-04-18",  # Vendredi Saint
-    "2026-04-21",  # Lundi de PÃ¢ques
+    "2026-04-21",  # Lundi de PÃÂ¢ques
     "2026-05-14",  # Ascension
-    "2026-05-25",  # Lundi de PentecÃ´te
-    "2026-05-27",  # FÃªte Nationale (27 mai CI)
-    "2026-06-05",  # AÃ¯d el-Fitr (approx)
+    "2026-05-25",  # Lundi de PentecÃÂ´te
+    "2026-05-27",  # FÃÂªte Nationale (27 mai CI)
+    "2026-06-05",  # AÃÂ¯d el-Fitr (approx)
     # 2025
-    "2025-04-21",  # Lundi de PÃ¢ques
+    "2025-04-21",  # Lundi de PÃÂ¢ques
     "2025-05-29",  # Ascension
-    "2025-06-09",  # Lundi de PentecÃ´te
+    "2025-06-09",  # Lundi de PentecÃÂ´te
 }
 
 def is_market_open(date_str=None):
-    """VÃ©rifie si le marchÃ© BRVM est ouvert (lun-ven, hors fÃ©riÃ©s)."""
+    """VÃÂ©rifie si le marchÃÂ© BRVM est ouvert (lun-ven, hors fÃÂ©riÃÂ©s)."""
     from datetime import datetime
     d = datetime.strptime(date_str or TODAY, "%Y-%m-%d")
     # Weekend
     if d.weekday() >= 5:
         return False
-    # Jours fÃ©riÃ©s
+    # Jours fÃÂ©riÃÂ©s
     mmdd = d.strftime("%m-%d")
     yyyymmdd = d.strftime("%Y-%m-%d")
     if mmdd in JOURS_FERIES or yyyymmdd in JOURS_FERIES:
@@ -187,10 +187,10 @@ def scrape_indices():
 
 def scrape_news():
     """
-    Scrape les actualitÃ©s officielles BRVM :
+    Scrape les actualitÃÂ©s officielles BRVM :
     1. Ticker tape BRVM (annonces dividendes, AGO/AGE depuis la page principale)
     2. Avis et publications brvm.org
-    3. RSS AgenceEcofin (fallback, sans dÃ©pendance Sika Finance)
+    3. RSS AgenceEcofin (fallback, sans dÃÂ©pendance Sika Finance)
     """
     import xml.etree.ElementTree as ET
     import hashlib
@@ -213,7 +213,7 @@ def scrape_news():
 
     headers_web = {"User-Agent": USER_AGENT, "Accept-Language": "fr-FR,fr;q=0.9"}
 
-    # ââ 1. Ticker tape BRVM â annonces dividendes + avis âââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 1. Ticker tape BRVM Ã¢ÂÂ annonces dividendes + avis Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     try:
         resp = requests.get("https://www.brvm.org/fr", headers=headers_web, timeout=20, verify=False)
         if resp.status_code == 200 and len(resp.text) > 500:
@@ -228,9 +228,9 @@ def scrape_news():
                 if t in TICKERS_KNOWN:
                     add_news(f"{t} : {message.strip()}", "BRVM Officiel", t)
 
-            # AGO/AGE et autres Ã©vÃ©nements
+            # AGO/AGE et autres ÃÂ©vÃÂ©nements
             events = re.findall(
-                r'(AG[OE]|AssemblÃ©e|Dividende|Coupon|RÃ©sultats?|Ãmission)[^<]{10,150}',
+                r'(AG[OE]|AssemblÃÂ©e|Dividende|Coupon|RÃÂ©sultats?|ÃÂmission)[^<]{10,150}',
                 text, re.IGNORECASE
             )
             for ev in events[:10]:
@@ -238,7 +238,7 @@ def scrape_news():
     except Exception as e:
         print(f"  Ticker tape scrape erreur: {e}")
 
-    # ââ 2. Avis et publications BRVM âââââââââââââââââââââââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 2. Avis et publications BRVM Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     try:
         avis_url = "https://www.brvm.org/fr/marche/avis-et-publications/avis"
         resp = requests.get(avis_url, headers=headers_web, timeout=20, verify=False)
@@ -250,7 +250,7 @@ def scrape_news():
             )
             for title in titles[:15]:
                 t = title.strip()
-                # DÃ©tecter le ticker
+                # DÃÂ©tecter le ticker
                 ticker = "BRVM"
                 for tk in TICKERS_KNOWN:
                     if tk in t.upper():
@@ -260,7 +260,7 @@ def scrape_news():
     except Exception as e:
         print(f"  Avis BRVM scrape erreur: {e}")
 
-    # ââ 3. RSS AgenceEcofin âââââââââââââââââââââââââââââââââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 3. RSS AgenceEcofin Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     rss_sources = [
         ("https://www.agenceecofin.com/rss/toute-actualite", "AgenceEcofin"),
         ("https://www.brvm.org/fr/rss.xml", "BRVM RSS"),
@@ -278,9 +278,9 @@ def scrape_news():
                 pub   = item.findtext("pubDate", now)
                 if not title:
                     continue
-                # Filtrer les articles BRVM/marchÃ©s africains
-                keywords = ["BRVM","bourse","boursier","action","marchÃ©","Afrique",
-                            "FCFA","dividende","rÃ©sultat","obligation"] + list(TICKERS_KNOWN)
+                # Filtrer les articles BRVM/marchÃÂ©s africains
+                keywords = ["BRVM","bourse","boursier","action","marchÃÂ©","Afrique",
+                            "FCFA","dividende","rÃÂ©sultat","obligation"] + list(TICKERS_KNOWN)
                 if not any(kw.upper() in title.upper() for kw in keywords):
                     continue
                 ticker = "BRVM"
@@ -292,12 +292,12 @@ def scrape_news():
         except Exception as e:
             print(f"  RSS {source_name} erreur: {e}")
 
-    # ââ 4. Scraper les Ã©vÃ©nements (dividendes, AGO) âââââââââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 4. Scraper les ÃÂ©vÃÂ©nements (dividendes, AGO) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     scrape_events()
 
-    print(f"  {len(news_rows)} news collectÃ©es")
+    print(f"  {len(news_rows)} news collectÃÂ©es")
     if not news_rows:
-        print("  Aucune news â brvm.org peut Ãªtre indisponible")
+        print("  Aucune news Ã¢ÂÂ brvm.org peut ÃÂªtre indisponible")
         return
 
     # Upsert par batch de 20
@@ -321,8 +321,8 @@ def scrape_news():
 
 def scrape_events():
     """
-    Scrape les Ã©vÃ©nements du calendrier BRVM :
-    dividendes, AGO/AGE, rÃ©sultats depuis le ticker tape brvm.org.
+    Scrape les ÃÂ©vÃÂ©nements du calendrier BRVM :
+    dividendes, AGO/AGE, rÃÂ©sultats depuis le ticker tape brvm.org.
     Alimente brvm_events.
     """
     now = datetime.now(timezone.utc).isoformat()
@@ -352,10 +352,10 @@ def scrape_events():
             except:
                 amount_f = None
 
-            # Parser la date franÃ§aise
-            mois = {"janvier":"01","fÃ©vrier":"02","mars":"03","avril":"04",
-                    "mai":"05","juin":"06","juillet":"07","aoÃ»t":"08",
-                    "septembre":"09","octobre":"10","novembre":"11","dÃ©cembre":"12"}
+            # Parser la date franÃÂ§aise
+            mois = {"janvier":"01","fÃÂ©vrier":"02","mars":"03","avril":"04",
+                    "mai":"05","juin":"06","juillet":"07","aoÃÂ»t":"08",
+                    "septembre":"09","octobre":"10","novembre":"11","dÃÂ©cembre":"12"}
             parts = date_str.lower().split()
             event_date = None
             if len(parts) == 3:
@@ -396,7 +396,7 @@ def scrape_events():
     if not events:
         return
 
-    print(f"  {len(events)} Ã©vÃ©nements dÃ©tectÃ©s")
+    print(f"  {len(events)} ÃÂ©vÃÂ©nements dÃÂ©tectÃÂ©s")
     try:
         resp = requests.post(
             SUPABASE_URL + "/rest/v1/brvm_events",
@@ -429,7 +429,7 @@ def update_meta(rows):
         return
     now = datetime.now(timezone.utc).isoformat()
 
-    # --- Variation J-1/J : rÃ©cupÃ©rer le close de la sÃ©ance prÃ©cÃ©dente ---
+    # --- Variation J-1/J : rÃÂ©cupÃÂ©rer le close de la sÃÂ©ance prÃÂ©cÃÂ©dente ---
     tickers_csv = ",".join(r["ticker"] for r in rows)
     prev_close = {}
     try:
@@ -442,7 +442,7 @@ def update_meta(rows):
         resp_prev = requests.get(url_prev, headers=HEADERS_SB, timeout=15)
         if resp_prev.ok:
             for r in resp_prev.json():
-                # Garder uniquement le close le plus rÃ©cent par ticker
+                # Garder uniquement le close le plus rÃÂ©cent par ticker
                 if r["ticker"] not in prev_close and r.get("close"):
                     prev_close[r["ticker"]] = r["close"]
     except Exception as e:
@@ -456,14 +456,14 @@ def update_meta(rows):
         close_prev  = prev_close.get(ticker) or 0
 
         # Variation intraday (BOC) : (close_J - open_J) / open_J
-        # ReprÃ©sente le mouvement pendant la sÃ©ance du jour
+        # ReprÃÂ©sente le mouvement pendant la sÃÂ©ance du jour
         if open_today > 0 and close_today > 0:
             var_intra = round((close_today - open_today) / open_today * 100, 2)
         else:
             var_intra = 0.0
 
-        # Variation inter-sÃ©ances : (close_J - close_J-1) / close_J-1
-        # C'est la variation officielle BRVM affichÃ©e dans le terminal (principale)
+        # Variation inter-sÃÂ©ances : (close_J - close_J-1) / close_J-1
+        # C'est la variation officielle BRVM affichÃÂ©e dans le terminal (principale)
         if close_prev > 0 and close_today > 0:
             change_pct = round((close_today - close_prev) / close_prev * 100, 2)
         else:
@@ -474,7 +474,7 @@ def update_meta(rows):
             "last_updated":     now,
             "last_close":       close_today,
             "last_volume":      row.get("volume", 0),
-            "change_pct":       change_pct,   # Variation principale : inter-sÃ©ances (close_J / close_J-1)
+            "change_pct":       change_pct,   # Variation principale : inter-sÃÂ©ances (close_J / close_J-1)
             "var_intra":        var_intra,    # Variation intraday BOC : (close_J - open_J) / open_J
         }
         resp = requests.patch(url, headers=HEADERS_SB, json=payload, timeout=10)
@@ -494,12 +494,12 @@ def get_pdf_urls():
     # Format alternatif avec tirets
     d2 = TODAY[:4] + "-" + TODAY[5:7] + "-" + TODAY[8:10]  # YYYY-MM-DD
     return [
-        # brvm.org â format standard (suffixe _2 = sÃ©ance complÃ¨te, _1 = partiel)
+        # brvm.org Ã¢ÂÂ format standard (suffixe _2 = sÃÂ©ance complÃÂ¨te, _1 = partiel)
         f"https://www.brvm.org/sites/default/files/boc_{d}_2.pdf",
         f"https://www.brvm.org/sites/default/files/boc_{d}_1.pdf",
-        # bfin.brvm.org â mirror secondaire
+        # bfin.brvm.org Ã¢ÂÂ mirror secondaire
         f"http://bfin.brvm.org/boc/BOC_JOUR/BOC_{d}.pdf",
-        # Variantes de nommage observÃ©es
+        # Variantes de nommage observÃÂ©es
         f"https://www.brvm.org/sites/default/files/BOC_{d}_2.pdf",
         f"https://www.brvm.org/sites/default/files/BOC_{d}.pdf",
         f"https://www.brvm.org/sites/default/files/boc_{d}.pdf",
@@ -608,14 +608,14 @@ def scrape_from_html():
 
 def ensure_fundamentals_base():
     """Upsert les tickers manquants dans brvm_fundamentals (name/sector/country seulement).
-    N'Ã©crase pas les donnÃ©es existantes grÃ¢ce Ã  merge-duplicates."""
+    N'ÃÂ©crase pas les donnÃÂ©es existantes grÃÂ¢ce ÃÂ  merge-duplicates."""
     BASE_INFO = [
-        {"ticker": "CROWN", "name": "Crown Siem CI",       "sector": "Industrie",    "country": "CÃ´te d'Ivoire"},
-        {"ticker": "MOVIS", "name": "Movis CI",             "sector": "Transport",    "country": "CÃ´te d'Ivoire"},
-        {"ticker": "SVOC",  "name": "Movis CI",             "sector": "Transport",    "country": "CÃ´te d'Ivoire"},
-        {"ticker": "TTRC",  "name": "Tractafric Motors CI", "sector": "Distribution", "country": "CÃ´te d'Ivoire"},
+        {"ticker": "CROWN", "name": "Crown Siem CI",       "sector": "Industrie",    "country": "CÃÂ´te d'Ivoire"},
+        {"ticker": "MOVIS", "name": "Movis CI",             "sector": "Transport",    "country": "CÃÂ´te d'Ivoire"},
+        {"ticker": "SVOC",  "name": "Movis CI",             "sector": "Transport",    "country": "CÃÂ´te d'Ivoire"},
+        {"ticker": "TTRC",  "name": "Tractafric Motors CI", "sector": "Distribution", "country": "CÃÂ´te d'Ivoire"},
     ]
-    # RÃ©cupÃ©rer les tickers dÃ©jÃ  prÃ©sents
+    # RÃÂ©cupÃÂ©rer les tickers dÃÂ©jÃÂ  prÃÂ©sents
     try:
         existing = requests.get(
             SUPABASE_URL + "/rest/v1/brvm_fundamentals?select=ticker",
@@ -629,11 +629,11 @@ def ensure_fundamentals_base():
                 headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
                 json=to_insert, timeout=10
             )
-            print(f"brvm_fundamentals base: {len(to_insert)} tickers ajoutÃ©s ({[r['ticker'] for r in to_insert]})")
+            print(f"brvm_fundamentals base: {len(to_insert)} tickers ajoutÃÂ©s ({[r['ticker'] for r in to_insert]})")
         else:
             print("brvm_fundamentals base: OK (aucun ticker manquant)")
     except Exception as e:
-        print(f"brvm_fundamentals base: erreur â {e}")
+        print(f"brvm_fundamentals base: erreur Ã¢ÂÂ {e}")
 
 
 def main():
@@ -641,22 +641,23 @@ def main():
     print("=" * 50)
     ensure_fundamentals_base()
     if not is_market_open():
-        print(f"Marche BRVM ferme le {TODAY} (weekend ou ferie) â skip cours.")
+        print(f"Marche BRVM ferme le {TODAY} (weekend ou ferie) Ã¢ÂÂ skip cours.")
         try: scrape_indices()
         except: pass
         try: scrape_news()
         except: pass
         sys.exit(0)
-    print("\n[1/2] Bulletin Officiel de la Cote PDF (source officielle)...")
-    rows, pdf_source = scrape_from_pdf()
+    print("\n[1/2] Scraping HTML brvm.org (source principale)...")
+    rows = scrape_from_html()
+    pdf_source = None
     if not rows:
-        print("\n[2/2] Fallback: scraping HTML brvm.org...")
-        rows = scrape_from_html()
+        print("\n[2/2] Fallback: Bulletin Officiel de la Cote (PDF)...")
+        rows, pdf_source = scrape_from_pdf()
     print(f"\n{len(rows)} tickers recuperes")
     if not rows:
         print("Aucune donnee disponible. Repassage au prochain cron.")
         sys.exit(0)
-    # Supprimer les donnÃ©es existantes uniquement si scraping rÃ©ussi
+    # Supprimer les donnÃÂ©es existantes uniquement si scraping rÃÂ©ussi
     delete_date_prices(TODAY)
     print("Envoi vers Supabase...")
     inserted = upsert_prices(rows)
@@ -667,7 +668,7 @@ def main():
     scrape_indices()
     print("Scraping news BRVM...")
     scrape_news()
-    # ââ Rapports annuels (chaque lundi ou si FORCE_RAPPORTS=1) ââ
+    # Ã¢ÂÂÃ¢ÂÂ Rapports annuels (chaque lundi ou si FORCE_RAPPORTS=1) Ã¢ÂÂÃ¢ÂÂ
     if datetime.now().weekday() == 0 or os.environ.get("FORCE_RAPPORTS"):
         install_deps()
         scrape_rapports_annuels()
@@ -680,10 +681,10 @@ if __name__ == "__main__":
 
 
 # ============================================================
-# SCRAPER RAPPORTS ANNUELS â brvm_financials
+# SCRAPER RAPPORTS ANNUELS Ã¢ÂÂ brvm_financials
 # ============================================================
 
-# Mapping ticker â mots-clÃ©s dans le nom du fichier PDF
+# Mapping ticker Ã¢ÂÂ mots-clÃÂ©s dans le nom du fichier PDF
 TICKER_PDF_KEYWORDS = {
     "ABJC": ["abjc","abdijan","abidjan_bus"],
     "BICC": ["bici","bicici"],
@@ -798,7 +799,7 @@ def fetch_rapport_list(year=None):
 
 def extract_financials_from_pdf(pdf_bytes, ticker):
     """
-    Extrait les donnÃ©es financiÃ¨res d'un rapport annuel PDF BRVM.
+    Extrait les donnÃÂ©es financiÃÂ¨res d'un rapport annuel PDF BRVM.
     Retourne un dict avec ca, rn, cap_propres, bpa, dividende etc.
     """
     data = {}
@@ -810,7 +811,7 @@ def extract_financials_from_pdf(pdf_bytes, ticker):
                 text = page.extract_text() or ""
                 full_text += text + "\n"
             
-            # ââ Patterns de recherche (SYSCOHADA / comptes BRVM) âââââââââ
+            # Ã¢ÂÂÃ¢ÂÂ Patterns de recherche (SYSCOHADA / comptes BRVM) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             patterns = {
                 # Chiffre d'affaires
                 "ca": [
@@ -818,10 +819,10 @@ def extract_financials_from_pdf(pdf_bytes, ticker):
                     r"produits\s+d.exploitation[^\d]*?([\d\s]+(?:,\d+)?)",
                     r"revenus?\s+nets?[^\d]*?([\d\s]+(?:,\d+)?)",
                 ],
-                # RÃ©sultat net
+                # RÃÂ©sultat net
                 "rn": [
-                    r"r[eÃ©]sultat\s+net\s*(?:de\s+l.exercice)?[^\d]*?([+-]?[\d\s]+(?:,\d+)?)\s*(?:FCFA|F CFA|millions?)?",
-                    r"b[eÃ©]n[eÃ©]fice\s+net[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"r[eÃÂ©]sultat\s+net\s*(?:de\s+l.exercice)?[^\d]*?([+-]?[\d\s]+(?:,\d+)?)\s*(?:FCFA|F CFA|millions?)?",
+                    r"b[eÃÂ©]n[eÃÂ©]fice\s+net[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
                     r"perte\s+nette[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
                 ],
                 # Capitaux propres
@@ -834,11 +835,11 @@ def extract_financials_from_pdf(pdf_bytes, ticker):
                 "actif_total": [
                     r"total\s+(?:du\s+)?bilan[^\d]*?([\d\s]+(?:,\d+)?)",
                     r"total\s+actif[^\d]*?([\d\s]+(?:,\d+)?)",
-                    r"total\s+g[eÃ©]n[eÃ©]ral[^\d]*?([\d\s]+(?:,\d+)?)",
+                    r"total\s+g[eÃÂ©]n[eÃÂ©]ral[^\d]*?([\d\s]+(?:,\d+)?)",
                 ],
-                # RÃ©sultat d'exploitation / EBIT
+                # RÃÂ©sultat d'exploitation / EBIT
                 "res_exp": [
-                    r"r[eÃ©]sultat\s+(?:d.exploitation|opÃ©rationnel)[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"r[eÃÂ©]sultat\s+(?:d.exploitation|opÃÂ©rationnel)[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
                     r"ebit[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
                 ],
                 # Dividende
@@ -848,19 +849,19 @@ def extract_financials_from_pdf(pdf_bytes, ticker):
                 ],
                 # BPA
                 "bpa": [
-                    r"b[eÃ©]n[eÃ©]fice\s+(?:net\s+)?par\s+action[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"b[eÃÂ©]n[eÃÂ©]fice\s+(?:net\s+)?par\s+action[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
                     r"bpa[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
-                    r"r[eÃ©]sultat\s+(?:net\s+)?par\s+action[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"r[eÃÂ©]sultat\s+(?:net\s+)?par\s+action[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
                 ],
                 # Nombre de titres
                 "nb_titres": [
                     r"(?:nombre\s+de\s+)?(?:titres|actions)\s+(?:en\s+circulation|composant)[^\d]*?([\d\s]+)",
-                    r"capital\s+divis[eÃ©]\s+en\s+([\d\s]+)\s+actions",
+                    r"capital\s+divis[eÃÂ©]\s+en\s+([\d\s]+)\s+actions",
                 ],
             }
             
             def clean_num(s):
-                """Nettoie un nombre extrait du PDF: '1 234 567,00' â 1234567.0"""
+                """Nettoie un nombre extrait du PDF: '1 234 567,00' Ã¢ÂÂ 1234567.0"""
                 s = re.sub(r'\s+', '', s.strip())
                 s = s.replace(',', '.')
                 try:
@@ -874,17 +875,17 @@ def extract_financials_from_pdf(pdf_bytes, ticker):
                     if m:
                         val = clean_num(m.group(1))
                         if val is not None and val > 0:
-                            # DÃ©tecter l'unitÃ© â "en millions" ou "en milliers"
+                            # DÃÂ©tecter l'unitÃÂ© Ã¢ÂÂ "en millions" ou "en milliers"
                             # (les comptes BRVM sont souvent en millions FCFA)
                             data[field] = val
                             break
             
-            # DÃ©tecter l'unitÃ© globale du document
+            # DÃÂ©tecter l'unitÃÂ© globale du document
             if "millions" in full_text.lower() or "en millions" in full_text.lower():
-                # DÃ©jÃ  en millions â OK
+                # DÃÂ©jÃÂ  en millions Ã¢ÂÂ OK
                 pass
             elif "milliers" in full_text.lower() or "en milliers" in full_text.lower():
-                # En milliers â diviser par 1000 pour avoir des millions
+                # En milliers Ã¢ÂÂ diviser par 1000 pour avoir des millions
                 for k in ["ca","rn","cap_propres","actif_total","res_exp","ebitda"]:
                     if k in data:
                         data[k] = data[k] / 1000
@@ -896,7 +897,7 @@ def extract_financials_from_pdf(pdf_bytes, ticker):
 
 
 def compute_ratios(data, cours, nb_titres_brvm=None):
-    """Calcule les ratios Ã  partir des donnÃ©es extraites du PDF et du cours BRVM."""
+    """Calcule les ratios ÃÂ  partir des donnÃÂ©es extraites du PDF et du cours BRVM."""
     r = {}
     
     ca    = data.get("ca")
@@ -916,7 +917,7 @@ def compute_ratios(data, cours, nb_titres_brvm=None):
             r["marge_op"] = round(data["res_exp"] / ca * 100, 2)
     if nb and nb > 0:
         if rn is not None:
-            r["bpa"] = round((rn * 1e6) / nb, 2)  # rn en M FCFA â FCFA par action
+            r["bpa"] = round((rn * 1e6) / nb, 2)  # rn en M FCFA Ã¢ÂÂ FCFA par action
     
     return r
 
@@ -924,7 +925,7 @@ def compute_ratios(data, cours, nb_titres_brvm=None):
 def scrape_rapports_annuels():
     """
     Fonction principale : scrape les rapports annuels BRVM et 
-    met Ã  jour brvm_financials + brvm_fundamentals.
+    met ÃÂ  jour brvm_financials + brvm_fundamentals.
     """
     from datetime import datetime
     current_year = datetime.now().year
@@ -932,13 +933,13 @@ def scrape_rapports_annuels():
     
     print(f"\n[RAPPORTS] Scraping rapports annuels exercice {target_year}...")
     
-    # 1. RÃ©cupÃ©rer la liste des PDFs disponibles
+    # 1. RÃÂ©cupÃÂ©rer la liste des PDFs disponibles
     pdf_entries = fetch_rapport_list(target_year)
     if not pdf_entries:
-        print("  Aucun rapport trouvÃ© â vÃ©rifier l'accÃ¨s Ã  brvm.org")
+        print("  Aucun rapport trouvÃÂ© Ã¢ÂÂ vÃÂ©rifier l'accÃÂ¨s ÃÂ  brvm.org")
         return
     
-    print(f"  {len(pdf_entries)} rapports trouvÃ©s")
+    print(f"  {len(pdf_entries)} rapports trouvÃÂ©s")
     
     headers = {"User-Agent": USER_AGENT, "Referer": "https://www.brvm.org/fr/"}
     now     = datetime.now(timezone.utc).isoformat()
@@ -949,31 +950,31 @@ def scrape_rapports_annuels():
         url        = entry["url"]
         fiscal_year = entry["fiscal_year"]
         
-        # VÃ©rifier si dÃ©jÃ  parsÃ© rÃ©cemment
+        # VÃÂ©rifier si dÃÂ©jÃÂ  parsÃÂ© rÃÂ©cemment
         check_url = f"{SUPABASE_URL}/rest/v1/brvm_financials?ticker=eq.{ticker}&fiscal_year=eq.{fiscal_year}&select=parsed_at"
         check_r   = requests.get(check_url, headers=HEADERS_SB, timeout=10)
         if check_r.ok:
             existing = check_r.json()
             if existing and existing[0].get("parsed_at"):
-                print(f"  {ticker} {fiscal_year} â dÃ©jÃ  parsÃ©, skip")
+                print(f"  {ticker} {fiscal_year} Ã¢ÂÂ dÃÂ©jÃÂ  parsÃÂ©, skip")
                 continue
         
-        print(f"  TÃ©lÃ©chargement {ticker} {fiscal_year}...")
+        print(f"  TÃÂ©lÃÂ©chargement {ticker} {fiscal_year}...")
         try:
             pdf_r = requests.get(url, headers=headers, timeout=60, verify=False)
             if pdf_r.status_code != 200:
-                print(f"    â HTTP {pdf_r.status_code}")
+                print(f"    Ã¢ÂÂ HTTP {pdf_r.status_code}")
                 continue
             
             pdf_bytes = pdf_r.content
             if not pdf_bytes[:4] == b"%PDF":
-                print(f"    â Pas un PDF valide")
+                print(f"    Ã¢ÂÂ Pas un PDF valide")
                 continue
             
-            # Extraire les donnÃ©es
+            # Extraire les donnÃÂ©es
             fin_data = extract_financials_from_pdf(pdf_bytes, ticker)
             if not fin_data:
-                print(f"    â Aucune donnÃ©e extraite")
+                print(f"    Ã¢ÂÂ Aucune donnÃÂ©e extraite")
                 continue
             
             # Calculer les ratios
@@ -996,10 +997,10 @@ def scrape_rapports_annuels():
                 json=row_data, timeout=15)
             
             if r.status_code in (200, 201):
-                print(f"    â {ticker} {fiscal_year}: CA={fin_data.get('ca','?')}M, RN={fin_data.get('rn','?')}M")
+                print(f"    Ã¢ÂÂ {ticker} {fiscal_year}: CA={fin_data.get('ca','?')}M, RN={fin_data.get('rn','?')}M")
                 ok_count += 1
                 
-                # Mettre Ã  jour brvm_fundamentals avec les donnÃ©es les plus rÃ©centes
+                # Mettre ÃÂ  jour brvm_fundamentals avec les donnÃÂ©es les plus rÃÂ©centes
                 fund_update = {k: v for k, v in {**fin_data, **ratios}.items()
                                if k in ["ca","rn","ebitda","cap_propres","bpa","dividende",
                                         "roe","roa","marge_nette","marge_op","debt_equity"]}
@@ -1008,12 +1009,12 @@ def scrape_rapports_annuels():
                     f"{SUPABASE_URL}/rest/v1/brvm_fundamentals?ticker=eq.{ticker}",
                     headers=HEADERS_SB, json=fund_update, timeout=10)
             else:
-                print(f"    â Supabase {r.status_code}: {r.text[:100]}")
+                print(f"    Ã¢ÂÂ Supabase {r.status_code}: {r.text[:100]}")
         
         except Exception as e:
-            print(f"    â Erreur {ticker}: {e}")
+            print(f"    Ã¢ÂÂ Erreur {ticker}: {e}")
     
-    print(f"\n[RAPPORTS] {ok_count}/{len(pdf_entries)} rapports traitÃ©s")
+    print(f"\n[RAPPORTS] {ok_count}/{len(pdf_entries)} rapports traitÃÂ©s")
 
 
 
