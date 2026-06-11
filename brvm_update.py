@@ -198,7 +198,18 @@ def scrape_news():
     news_rows = []
     seen_hashes = set()
 
+    # Artefacts de navigation a filtrer (pas de vraies news)
+    JUNK_PHRASES = ["je suis un","investissons pour","je m'identifie",
+                    "accueil","menu","connexion","s'inscrire","login","logout"]
+
     def add_news(headline, source, ticker="BRVM", url="", pub_date=None):
+        h_clean = headline.strip().lower()
+        # Filtrer headlines trop courtes
+        if len(headline.strip()) < 25:
+            return
+        # Filtrer artefacts de navigation
+        if any(j in h_clean for j in JUNK_PHRASES):
+            return
         h = hashlib.md5(headline.encode()).hexdigest()
         if h in seen_hashes:
             return
@@ -209,7 +220,7 @@ def scrape_news():
             "ticker": ticker,
             "headline": headline[:500],
             "url": url[:500],
-                    })
+        })
 
     headers_web = {"User-Agent": USER_AGENT, "Accept-Language": "fr-FR,fr;q=0.9"}
 
@@ -264,6 +275,7 @@ def scrape_news():
     rss_sources = [
         ("https://www.agenceecofin.com/rss/toute-actualite", "AgenceEcofin"),
         ("https://www.brvm.org/fr/rss.xml", "BRVM RSS"),
+        ("https://www.sikafinance.com/rss/flux_actu", "Sika Finance"),
     ]
     for rss_url, source_name in rss_sources:
         try:
