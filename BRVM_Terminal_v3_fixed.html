@@ -310,22 +310,6 @@ table.t td .name{color:var(--dim);font-size:10px;margin-left:6px}
 .news-row .src{color:var(--cyan);font-size:10px;text-transform:uppercase;letter-spacing:0.5px}
 .news-row .tk{color:var(--orange-bright);font-weight:600}
 .news-row .h{color:var(--white)}
-.news-row.has-url:hover .h{color:var(--orange-bright);text-decoration:underline}
-#news-drawer{position:fixed;right:0;top:40px;bottom:0;width:400px;background:#0d0d0d;border-left:1px solid #222;z-index:2000;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;padding:20px}
-#news-drawer.open{transform:translateX(0)}
-#news-drawer .nd-close{position:absolute;top:10px;right:14px;cursor:pointer;color:#555;font-size:20px;background:none;border:none}
-#news-drawer .nd-close:hover{color:#fff}
-#news-drawer .nd-meta{display:flex;gap:8px;align-items:center;margin-bottom:10px}
-#news-drawer .nd-source{color:var(--cyan);font-size:10px;text-transform:uppercase;letter-spacing:1px}
-#news-drawer .nd-ticker-badge{background:var(--orange-bright);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:2px}
-#news-drawer .nd-time{color:#444;font-size:10px;margin-left:auto}
-#news-drawer .nd-title{color:#e8e8e8;font-size:14px;font-weight:600;line-height:1.5;margin-bottom:20px;border-bottom:1px solid #1a1a1a;padding-bottom:16px}
-#news-drawer .nd-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:var(--orange-bright);color:#000;font-weight:700;font-size:12px;text-decoration:none;border-radius:3px;margin-bottom:10px;cursor:pointer;border:none}
-#news-drawer .nd-btn:hover{opacity:.85}
-#news-drawer .nd-btn-ghost{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:9px;border:1px solid #2a2a2a;color:#888;font-size:11px;border-radius:3px;cursor:pointer;background:transparent;text-decoration:none;margin-top:6px}
-#news-drawer .nd-btn-ghost:hover{border-color:#444;color:#ccc}
-#news-drawer-overlay{position:fixed;inset:0;z-index:1999;display:none}
-#news-drawer-overlay.open{display:block}
 
 /* ─── F2 PORTFOLIO layout ────────────────────────────── */
 #view-portfolio{
@@ -2148,31 +2132,7 @@ let TICKERS = [
 // NEWS — chargées depuis Supabase brvm_news (alimenté par scraper)
 let NEWS = [];
 
-async function openNewsDrawer(n){
-  if(!n)return;
-  document.getElementById('nd-source').textContent=n.src||'';
-  const b=document.getElementById('nd-ticker-badge');
-  if(n.tk&&n.tk!=='BRVM'){b.textContent=n.tk;b.style.display='';}else{b.style.display='none';}
-  document.getElementById('nd-time').textContent=n.t||'';
-  document.getElementById('nd-title').textContent=n.h||'';
-  const lk=document.getElementById('nd-link');
-  if(n.url){lk.href=n.url;lk.style.display='flex';}else{lk.style.display='none';}
-  document.getElementById('news-drawer').classList.add('open');
-  document.getElementById('news-drawer-overlay').classList.add('open');
-  window._cn=n;
-}
-function closeNewsDrawer(){
-  document.getElementById('news-drawer').classList.remove('open');
-  document.getElementById('news-drawer-overlay').classList.remove('open');
-}
-function searchNewsGoogle(){
-  window.open('https://www.google.com/search?q='+encodeURIComponent((window._cn?.h||'')+' BRVM bourse'),'_blank');
-}
-function searchNewsSika(){
-  const tk=window._cn?.tk||'';
-  window.open(tk&&tk!=='BRVM'?'https://www.sikafinance.com/marches/cours_'+tk.toLowerCase():'https://www.sikafinance.com','_blank');
-}
-function fetchNews(){
+async function fetchNews(){
   try{
     const url = SUPABASE_URL+"/rest/v1/brvm_news?select=published_at,source,ticker,headline&order=published_at.desc&limit=30";
     const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
@@ -2845,11 +2805,11 @@ function loadPreset(p){
    ============================================================ */
 function renderNews(){
   $("newsFeed").innerHTML = NEWS.map(n => `
-    <div class="news-row ${n.url?'has-url':''}" data-idx="${NEWS.indexOf(n)}" onclick="openNewsDrawer(NEWS[+this.getAttribute('data-idx')])" style="cursor:pointer">
+    <div class="news-row" onclick="${n.tk!=='BRVM' ? `openTicker('${n.tk}')` : ''}">
       <div class="t">${n.t}</div>
       <div class="src">${n.src}</div>
       <div class="tk">${n.tk}</div>
-      <div class="h">${n.h}${n.url?'<span style="color:var(--orange-bright);font-size:9px;margin-left:4px">&#x25CF;</span>':''}</div>
+      <div class="h">${n.h}</div>
     </div>`).join("");
 
   const typeColor = {DIV:"var(--green)", AGO:"var(--cyan)", AGE:"var(--magenta)", RES:"var(--orange-bright)"};
@@ -4226,19 +4186,6 @@ function exportBulletin(){
   <script>
     window.onload = function(){ window.print(); }
   <\/script>
-<div id="news-drawer-overlay" onclick="closeNewsDrawer()"></div>
-<div id="news-drawer">
-  <button class="nd-close" onclick="closeNewsDrawer()">&#x2715;</button>
-  <div class="nd-meta">
-    <span class="nd-source" id="nd-source"></span>
-    <span class="nd-ticker-badge" id="nd-ticker-badge" style="display:none"></span>
-    <span class="nd-time" id="nd-time"></span>
-  </div>
-  <div class="nd-title" id="nd-title"></div>
-  <a class="nd-btn" id="nd-link" target="_blank" rel="noopener noreferrer" style="display:none">&#x2197; Lire l'article complet</a>
-  <button class="nd-btn-ghost" onclick="searchNewsGoogle()">&#x1F50D; Rechercher sur Google</button>
-  <button class="nd-btn-ghost" onclick="searchNewsSika()">&#x1F4CA; Voir sur Sika Finance</button>
-</div>
 </body>
 </html>`);
   popup.document.close();
