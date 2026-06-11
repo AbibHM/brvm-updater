@@ -655,7 +655,9 @@ def main():
         rows, pdf_source = scrape_from_pdf()
     print(f"\n{len(rows)} tickers recuperes")
     if not rows:
-        print("Aucune donnee disponible. Repassage au prochain cron.")
+        print("Aucune donnee disponible pour les cours. Repassage au prochain cron.")
+        install_deps()
+        scrape_rapports_annuels()
         sys.exit(0)
     # Supprimer les donnÃÂ©es existantes uniquement si scraping rÃÂ©ussi
     delete_date_prices(TODAY)
