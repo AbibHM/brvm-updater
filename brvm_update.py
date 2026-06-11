@@ -669,9 +669,9 @@ def main():
     print("Scraping news BRVM...")
     scrape_news()
     # Ã¢ÂÂÃ¢ÂÂ Rapports annuels (chaque lundi ou si FORCE_RAPPORTS=1) Ã¢ÂÂÃ¢ÂÂ
-    if datetime.now().weekday() == 0 or os.environ.get("FORCE_RAPPORTS"):
-        install_deps()
-        scrape_rapports_annuels()
+    # Vérification quotidienne - on ne télécharge que les PDFs nouveaux
+    install_deps()
+    scrape_rapports_annuels()
     print("Termine: " + datetime.now().strftime("%H:%M:%S UTC"))
     sys.exit(0 if inserted > 0 else 1)
 
@@ -696,7 +696,7 @@ TICKER_PDF_KEYWORDS = {
     "BOAM": ["boa_mali","bank_of_africa_mali"],
     "BOAN": ["boa_niger","bank_of_africa_niger"],
     "BOAS": ["boa_senegal","bank_of_africa_senegal"],
-    "CABC": ["cabc","coris"],
+    "CABC": ["cabc","sicable","sica_cable"],
     "CBIBF": ["coris_bank","cbi"],
     "CFAC": ["cfac","compagnie_financiere"],
     "CIEC": ["ciec","cie","compagnie_ivoirienne"],
@@ -717,16 +717,18 @@ TICKER_PDF_KEYWORDS = {
     "SDSC": ["sdsc","sds"],
     "SEMC": ["semc","sem"],
     "SGBC": ["societe_generale_ci","societe_generale_cote","sgbc","sgbci"],
-    "SHEC": ["shec","solibra"],
+    "SHEC": ["shec","solibra","saph","soci_africaine"],
     "SIBC": ["sib_ci","sib_cote","sibc"],
     "SICC": ["sicc","sicable"],
     "SIVC": ["siveng","sivci"],
     "SLBC": ["slbc","societe_laitiere"],
-    "SMBC": ["smbc","smi"],
-    "SNTS": ["sentelec","sentel"],
+    "SMBC": ["smbc","smi","smb_ci","scierie_menuiserie"],
+    "SNTS": ["sentelec","sentel","sonatel","sonatel_sa"],
     "SOGC": ["sogc","sogeci"],
     "SPHC": ["sphc","sphere"],
+    "STAC": ["stac","setao","setao_ci"],
     "STBC": ["stbc","solibra","sitab"],
+    "SVOC":  ["svoc","vivo_energy","vivo_ci","shell_ci"],
     "TTLC": ["ttlc","totalenergies_ci","total_cote"],
     "TTLS": ["ttls","totalenergies_senegal","total_senegal"],
     "UNLC": ["unilever_ci","unilever_cote"],
@@ -763,13 +765,18 @@ def fetch_rapport_list(year=None):
             # Chercher les liens PDF et les noms de fichiers
             # Pattern: href="/sites/default/files/YYYYMMDD_-_rapport_..._YYYY_-_nom.pdf"
             pdf_pat = re.compile(
-                r'href="(/sites/default/files/(\d{8})_-_[^"]*exercice[_-](\d{4})[^"]*\.pdf)"',
+                r'href="(/sites/default/files/(\d{8})_-_(rapport[^"]*?|etats_financiers[^"]*?)(\d{4})[^"]*?\.pdf)"',
                 re.IGNORECASE
             )
             for m in pdf_pat.finditer(r.text):
                 path      = m.group(1)
                 date_pub  = m.group(2)
-                year_doc  = int(m.group(3))
+                year_doc  = int(m.group(4))
+                fname_lower = path.lower()
+                if any(x in fname_lower for x in ["semestriel","semestre","semi_annuel","s1_","s2_"]):
+                    period_type = "semi-annual"
+                else:
+                    period_type = "annual"
                 full_url  = "https://www.brvm.org" + path
                 filename  = path.split("/")[-1].lower()
                 
@@ -780,12 +787,13 @@ def fetch_rapport_list(year=None):
                         ticker = t
                         break
                 
-                if ticker and year_doc >= year - 1:
+                if ticker and year_doc >= year - 2:
                     pdf_entries.append({
                         "ticker": ticker,
                         "url": full_url,
                         "fiscal_year": str(year_doc),
                         "date_pub": date_pub,
+                        "period_type": period_type,
                     })
             
             if pdf_entries:
@@ -946,9 +954,10 @@ def scrape_rapports_annuels():
     ok_count = 0
     
     for entry in pdf_entries:
-        ticker     = entry["ticker"]
-        url        = entry["url"]
+        ticker      = entry["ticker"]
+        url         = entry["url"]
         fiscal_year = entry["fiscal_year"]
+        period_type = entry.get("period_type", "annual")
         
         # VÃÂ©rifier si dÃÂ©jÃÂ  parsÃÂ© rÃÂ©cemment
         check_url = f"{SUPABASE_URL}/rest/v1/brvm_financials?ticker=eq.{ticker}&fiscal_year=eq.{fiscal_year}&select=parsed_at"
@@ -987,7 +996,8 @@ def scrape_rapports_annuels():
             ratios   = compute_ratios(fin_data, cours)
             row_data = {**fin_data, **ratios,
                         "ticker": ticker, "fiscal_year": fiscal_year,
-                        "period_type": "annual", "source_url": url,
+                        "period_type": period_type,
+                        "source_url": url,
                         "source_type": "pdf_annuel", "parsed_at": now}
             
             # Upsert dans brvm_financials
@@ -1001,13 +1011,16 @@ def scrape_rapports_annuels():
                 ok_count += 1
                 
                 # Mettre ÃÂ  jour brvm_fundamentals avec les donnÃÂ©es les plus rÃÂ©centes
-                fund_update = {k: v for k, v in {**fin_data, **ratios}.items()
-                               if k in ["ca","rn","ebitda","cap_propres","bpa","dividende",
-                                        "roe","roa","marge_nette","marge_op","debt_equity"]}
-                fund_update["fiscal_year"] = fiscal_year
-                requests.patch(
-                    f"{SUPABASE_URL}/rest/v1/brvm_fundamentals?ticker=eq.{ticker}",
-                    headers=HEADERS_SB, json=fund_update, timeout=10)
+                if period_type == "annual":
+                    fund_update = {k: v for k, v in {**fin_data, **ratios}.items()
+                                   if k in ["ca","rn","ebitda","cap_propres","bpa","dividende",
+                                            "roe","roa","marge_nette","marge_op","debt_equity"]}
+                    fund_update["fiscal_year"] = fiscal_year
+                    requests.patch(
+                        f"{SUPABASE_URL}/rest/v1/brvm_fundamentals?ticker=eq.{ticker}",
+                        headers=HEADERS_SB, json=fund_update, timeout=10)
+                else:
+                    print(f"    semestriel {ticker} {fiscal_year} — financials seulement")
             else:
                 print(f"    Ã¢ÂÂ Supabase {r.status_code}: {r.text[:100]}")
         
