@@ -1,20 +1,22 @@
 name: Revert Terminal HTML
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-  jobs:
-    revert:
-        runs-on: ubuntu-latest
-            permissions:
-                  contents: write
-                      steps:
-                            - uses: actions/checkout@v4
-                                    with:
-                                              fetch-depth: 0
-                                                        token: ${{ secrets.GITHUB_TOKEN }}
-                                                              - name: Revert to clean version
-                                                                      run: |
-                                                                                git config user.name "github-actions[bot]"
-                                                                                          git config user.email "github-actions[bot]@users.noreply.github.com"
-                                                                                                    git checkout 2c2eeec -- BRVM_Terminal_v3_fixed.html
-                                                                                                              git commit -m "revert: restore BRVM_Terminal_v3_fixed.html to working version"
-                                                                                                                        git push
+jobs:
+  revert:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Revert to clean version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout 2c2eeec -- BRVM_Terminal_v3_fixed.html
+          git commit -m "revert: restore BRVM_Terminal_v3_fixed.html to working version"
+          git push
