@@ -668,8 +668,12 @@ def main():
     print(f"\n{len(rows)} tickers recuperes")
     if not rows:
         print("Aucune donnee disponible pour les cours. Repassage au prochain cron.")
-        install_deps()
-        scrape_rapports_annuels()
+        # Tenter quand meme les rapports annuels (fonctions definies apres main)
+        try:
+            install_deps()
+            scrape_rapports_annuels()
+        except NameError:
+            pass
         sys.exit(0)
     # Supprimer les donnÃÂ©es existantes uniquement si scraping rÃÂ©ussi
     delete_date_prices(TODAY)
