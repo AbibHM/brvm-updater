@@ -4226,19 +4226,7 @@ function exportBulletin(){
   <script>
     window.onload = function(){ window.print(); }
   <\/script>
-<div id="news-drawer-overlay" onclick="closeNewsDrawer()"></div>
-<div id="news-drawer">
-  <button class="nd-close" onclick="closeNewsDrawer()">&#x2715;</button>
-  <div class="nd-meta">
-    <span class="nd-source" id="nd-source"></span>
-    <span class="nd-ticker-badge" id="nd-ticker-badge" style="display:none"></span>
-    <span class="nd-time" id="nd-time"></span>
-  </div>
-  <div class="nd-title" id="nd-title"></div>
-  <a class="nd-btn" id="nd-link" target="_blank" rel="noopener noreferrer" style="display:none">&#x2197; Lire l'article complet</a>
-  <button class="nd-btn-ghost" onclick="searchNewsGoogle()">&#x1F50D; Rechercher sur Google</button>
-  <button class="nd-btn-ghost" onclick="searchNewsSika()">&#x1F4CA; Voir sur Sika Finance</button>
-</div>
+/div>
 </body>
 </html>`);
   popup.document.close();
@@ -6877,5 +6865,18 @@ window.showMobileSearch    = showMobileSearch;
 
 <!-- Bouton recherche mobile flottant -->
 <button id="mobileSearchBtn" onclick="showMobileSearch()" title="Rechercher un ticker">🔍</button>
+<div id="news-drawer-overlay" onclick="closeNewsDrawer()"></div>
+<div id="news-drawer">
+  <button class="nd-close" onclick="closeNewsDrawer()">&#x2715;</button>
+  <div class="nd-meta">
+    <span class="nd-source" id="nd-source"></span>
+    <span class="nd-ticker-badge" id="nd-ticker-badge" style="display:none"></span>
+    <span class="nd-time" id="nd-time"></span>
+  </div>
+  <div class="nd-title" id="nd-title"></div>
+  <a class="nd-btn" id="nd-link" target="_blank" rel="noopener noreferrer" style="display:none">&#x2197; Lire l'article complet</a>
+  <button class="nd-btn-ghost" onclick="searchNewsGoogle()">&#x1F50D; Rechercher sur Google</button>
+  <button class="nd-btn-ghost" onclick="searchNewsSika()">&#x1F4CA; Voir sur Sika Finance</button>
+<
 </body>
 </html>
