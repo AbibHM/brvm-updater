@@ -200,12 +200,15 @@ def scrape_news():
 
     # Artefacts de navigation a filtrer (pas de vraies news)
     JUNK_PHRASES = ["je suis un","investissons pour","je m'identifie",
-                    "accueil","menu","connexion","s'inscrire","login","logout"]
+                    "accueil","menu","connexion","s'inscrire","login","logout",
+                    "age", "home", "retour", "suivant", "précédent",
+                    "en savoir plus", "voir plus", "lire la suite",
+                    "notre portail", "bienvenue", "rejoignez"]
 
     def add_news(headline, source, ticker="BRVM", url="", pub_date=None):
         h_clean = headline.strip().lower()
         # Filtrer headlines trop courtes
-        if len(headline.strip()) < 25:
+        if len(headline.strip()) < 30:
             return
         # Filtrer artefacts de navigation
         if any(j in h_clean for j in JUNK_PHRASES):
@@ -311,6 +314,19 @@ def scrape_news():
     if not news_rows:
         print("  Aucune news Ã¢ÂÂ brvm.org peut ÃÂªtre indisponible")
         return
+
+    # Récupérer les headlines déjà en base (déduplication côté Python)
+    try:
+        r_existing = requests.get(
+            SUPABASE_URL + "/rest/v1/brvm_news?select=headline&limit=500&order=published_at.desc",
+            headers=HEADERS_SB, timeout=10
+        )
+        if r_existing.status_code == 200:
+            existing_headlines = {row['headline'] for row in r_existing.json()}
+            news_rows = [n for n in news_rows if n['headline'] not in existing_headlines]
+            print(f"  Après déduplication: {len(news_rows)} nouvelles news")
+    except Exception as e:
+        print(f"  Déduplication erreur (non bloquant): {e}")
 
     # Upsert par batch de 20
     ok = 0
