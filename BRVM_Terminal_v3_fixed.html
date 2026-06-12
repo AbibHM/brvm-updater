@@ -2183,7 +2183,23 @@ async function fetchNews(){
     const rows = await r.json();
     if(!Array.isArray(rows) || rows.length===0) return;
     const now = new Date();
-    NEWS = rows.map(row => {
+    const JUNK = ['age','je suis un','investissons pour un développement',
+                  "je m'identifie",'accueil','menu','connexion','login','logout',
+                  'home','retour','suivant','précédent','en savoir plus','voir plus',
+                  'notre portail','bienvenue','rejoignez'];
+    const cleanRows = rows.filter(row => {
+      const h = (row.headline||'').trim().toLowerCase();
+      if(h.length < 30) return false;
+      if(JUNK.some(j => h.startsWith(j))) return false;
+      return true;
+    });
+    // Dédupliquer par headline (garder le plus récent)
+    const seen = {};
+    const dedupRows = [];
+    for(const row of cleanRows){
+      if(!seen[row.headline]){ seen[row.headline]=true; dedupRows.push(row); }
+    }
+    NEWS = dedupRows.map(row => {
       const d = new Date(row.published_at);
       const diffH = (now - d) / 3600000;
       let t;
