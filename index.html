@@ -755,7 +755,9 @@ function showSuccess(email){
   ov.classList.add('show');
   // Redirect après animation (1.5s bar + 0.8s délai)
   setTimeout(() => {
-    window.location.href = TERMINAL_URL + "?v=" + Date.now();
+    // Forcer le rechargement sans cache
+    const url = TERMINAL_URL + "?nocache=" + Date.now();
+    window.location.replace(url);
   }, 2600);
 }
 
