@@ -742,7 +742,7 @@ async function doForgot(){
   const email = document.getElementById('loginEmail').value.trim();
   if(!email){ setMsg('loginMsg','Entrez votre email d\'abord'); return; }
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/' + TERMINAL_URL
+    redirectTo: window.location.origin + '/' + TERMINAL_URL + '?v=' + Date.now()
   });
   if(error){ setMsg('loginMsg','❌ ' + error.message); }
   else { setMsg('loginMsg','✉ Email de réinitialisation envoyé', 'ok'); }
@@ -755,7 +755,7 @@ function showSuccess(email){
   ov.classList.add('show');
   // Redirect après animation (1.5s bar + 0.8s délai)
   setTimeout(() => {
-    window.location.href = TERMINAL_URL;
+    window.location.href = TERMINAL_URL + "?v=" + Date.now();
   }, 2600);
 }
 
