@@ -2175,7 +2175,7 @@ function searchNewsSika(){
   const tk=window._cn?.tk||'';
   window.open(tk&&tk!=='BRVM'?'https://www.sikafinance.com/marches/cours_'+tk.toLowerCase():'https://www.sikafinance.com','_blank');
 }
-function fetchNews(){
+async function fetchNews(){
   try{
     const url = SUPABASE_URL+"/rest/v1/brvm_news?select=published_at,source,ticker,headline&order=published_at.desc&limit=30";
     const r = await fetch(url, {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
@@ -6152,7 +6152,7 @@ function stopAutoRefresh(){
   toast("⏱ Auto-refresh désactivé");
 }
 
-function scheduleNextRefresh(sec){
+async function scheduleNextRefresh(sec){
   _autoRefreshCountdown = sec;
   _autoRefreshTimer = setTimeout(async () => {
     if(!_autoRefreshActive) return;
