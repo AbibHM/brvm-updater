@@ -616,22 +616,26 @@ def scrape_from_html():
     tag_p = re.compile(r"<[^>]+>")
     for trm in tr_p.finditer(resp.text):
         tr = trm.group(1)
-        tm = re.search(r"/fr/cours/([A-Z]{3,6})", tr, re.IGNORECASE)
-        if not tm: continue
-        ticker = tm.group(1).upper()
-        if ticker not in TICKERS_KNOWN: continue
-        tds = [clean(tag_p.sub("", td.group(1))) for td in td_p.finditer(tr)]
-        tds = [t for t in tds if t]
+        tds_raw = [clean(tag_p.sub("", td.group(1))) for td in td_p.finditer(tr)]
+        tds = [t for t in tds_raw if t]
         if len(tds) < 2: continue
-        nums = [v for t in tds if (v := to_float(t)) is not None and v > 0]
-        if not nums: continue
-        close = nums[0]; open_ = nums[2] if len(nums)>2 else close
-        high = nums[3] if len(nums)>3 else close; low = nums[4] if len(nums)>4 else close
+        ticker = tds[0].upper().strip()
+        if ticker not in TICKERS_KNOWN: continue
+        int_vals = [to_int(t) for t in tds]
         volume = 0
-        for t in reversed(tds):
-            v = to_int(t)
-            if v is not None and v >= 0: volume = v; break
+        for i in range(2, len(tds)):
+            v = int_vals[i]
+            if v is not None and v >= 0:
+                volume = v
+                break
+        price_nums = [to_float(tds[i]) for i in range(2, len(tds))
+                      if to_float(tds[i]) is not None and to_float(tds[i]) > 100]
+        if not price_nums: continue
+        open_  = price_nums[1] if len(price_nums) >= 2 else price_nums[0]
+        close  = price_nums[2] if len(price_nums) >= 3 else price_nums[-1]
+        high = close; low = close
         rows.append({"ticker": ticker, "date": TODAY, "open": open_, "high": high, "low": low, "close": close, "volume": volume})
+    print(f"  HTML scrape: {len(rows)} tickers")
     return rows
 
 def ensure_fundamentals_base():
@@ -644,6 +648,435 @@ def ensure_fundamentals_base():
         {"ticker": "TTRC",  "name": "Tractafric Motors CI", "sector": "Distribution", "country": "CÃÂ´te d'Ivoire"},
     ]
     # RÃÂ©cupÃÂ©rer les tickers dÃÂ©jÃÂ  prÃÂ©sents
+    try:
+        existing = requests.get(
+            SUPABASE_URL + "/rest/v1/brvm_fundamentals?select=ticker",
+            headers=HEADERS_SB, timeout=10
+        ).json()
+        existing_tickers = {r["ticker"] for r in existing} if isinstance(existing, list) else set()
+        to_insert = [r for r in BASE_INFO if r["ticker"] not in existing_tickers]
+        if to_insert:
+            r = requests.post(
+                SUPABASE_URL + "/rest/v1/brvm_fundamentals",
+                headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
+                json=to_insert, timeout=10
+            )
+            print(f"brvm_fundamentals base: {len(to_insert)} tickers ajoutÃÂ©s ({[r['ticker'] for r in to_insert]})")
+        else:
+            print("brvm_fundamentals base: OK (aucun ticker manquant)")
+    except Exception as e:
+        print(f"brvm_fundamentals base: erreur Ã¢ÂÂ {e}")
+
+
+def main():
+    print("BRVM Daily Updater - " + TODAY)
+    print("=" * 50)
+    ensure_fundamentals_base()
+    if not is_market_open():
+        print(f"Marche BRVM ferme le {TODAY} (weekend ou ferie) Ã¢ÂÂ skip cours.")
+        try: scrape_indices()
+        except: pass
+        try: scrape_news()
+        except: pass
+        sys.exit(0)
+    print("\n[1/2] Scraping HTML brvm.org (source principale)...")
+    rows = scrape_from_html()
+    pdf_source = None
+    if not rows:
+        print("\n[2/2] Fallback: Bulletin Officiel de la Cote (PDF)...")
+        rows, pdf_source = scrape_from_pdf()
+    print(f"\n{len(rows)} tickers recuperes")
+    if not rows:
+        print("Aucune donnee disponible pour les cours. Repassage au prochain cron.")
+        # Tenter quand meme les rapports annuels (fonctions definies apres main)
+        try:
+            install_deps()
+            scrape_rapports_annuels()
+        except NameError:
+            pass
+        sys.exit(0)
+    # Supprimer les donnÃÂ©es existantes uniquement si scraping rÃÂ©ussi
+    delete_date_prices(TODAY)
+    print("Envoi vers Supabase...")
+    inserted = upsert_prices(rows)
+    print(f"{inserted}/{len(rows)} lignes upsertees")
+    update_meta(rows)
+    # Mettre a jour les indices BRVM
+    print("Mise a jour des indices BRVM...")
+    scrape_indices()
+    print("Scraping news BRVM...")
+    scrape_news()
+    # Ã¢ÂÂÃ¢ÂÂ Rapports annuels (chaque lundi ou si FORCE_RAPPORTS=1) Ã¢ÂÂÃ¢ÂÂ
+    # Vérification quotidienne - on ne télécharge que les PDFs nouveaux
+    install_deps()
+    scrape_rapports_annuels()
+    print("Termine: " + datetime.now().strftime("%H:%M:%S UTC"))
+    sys.exit(0 if inserted > 0 else 1)
+
+
+if __name__ == "__main__":
+    main()
+
+
+# ============================================================
+# SCRAPER RAPPORTS ANNUELS Ã¢ÂÂ brvm_financials
+# ============================================================
+
+# Mapping ticker Ã¢ÂÂ mots-clÃÂ©s dans le nom du fichier PDF
+TICKER_PDF_KEYWORDS = {
+    "ABJC": ["abjc","abdijan","abidjan_bus"],
+    "BICC": ["bici","bicici"],
+    "BICB": ["bic_benin","bic-benin"],
+    "BNBC": ["bnb","bank_of_africa_niger_benin","bnbc"],
+    "BOAB": ["boa_benin","bank_of_africa_benin"],
+    "BOABF": ["boa_burkina","bank_of_africa_burkina"],
+    "BOAC": ["boa_ci","bank_of_africa_ci","boa_cote"],
+    "BOAM": ["boa_mali","bank_of_africa_mali"],
+    "BOAN": ["boa_niger","bank_of_africa_niger"],
+    "BOAS": ["boa_senegal","bank_of_africa_senegal"],
+    "CABC": ["cabc","sicable","sica_cable"],
+    "CBIBF": ["coris_bank","cbi"],
+    "CFAC": ["cfac","compagnie_financiere"],
+    "CIEC": ["ciec","cie","compagnie_ivoirienne"],
+    "ECOC": ["ecobank_ci","ecobank_cote"],
+    "ETIT": ["ecobank_transnational","etit","eti"],
+    "FTSC": ["filtisac","filtisaci"],
+    "NEIC": ["neinvestment","nei"],
+    "NSBC": ["nsia_banque","nsia-banque","nsbc"],
+    "NTLC": ["nestle","nestl"],
+    "ONTBF": ["onatel","office_national"],
+    "ORAC": ["orange_ci","orange_cote"],
+    "ORGT": ["oragroup","ora_group"],
+    "PALC": ["palm_ci","palm_cote","palmci"],
+    "PRSC": ["prs","peyrissac"],
+    "SAFC": ["safca","saf"],
+    "SCRC": ["sucrivoire","sucr"],
+    "SDCC": ["sodeci","societe_dist"],
+    "SDSC": ["sdsc","sds"],
+    "SEMC": ["semc","sem"],
+    "SGBC": ["societe_generale_ci","societe_generale_cote","sgbc","sgbci"],
+    "SHEC": ["shec","solibra","saph","soci_africaine"],
+    "SIBC": ["sib_ci","sib_cote","sibc"],
+    "SICC": ["sicc","sicable"],
+    "SIVC": ["siveng","sivci"],
+    "SLBC": ["slbc","societe_laitiere"],
+    "SMBC": ["smbc","smi","smb_ci","scierie_menuiserie"],
+    "SNTS": ["sentelec","sentel","sonatel","sonatel_sa"],
+    "SOGC": ["sogc","sogeci"],
+    "SPHC": ["sphc","sphere"],
+    "STAC": ["stac","setao","setao_ci"],
+    "STBC": ["stbc","solibra","sitab"],
+    "SVOC":  ["svoc","vivo_energy","vivo_ci","shell_ci"],
+    "TTLC": ["ttlc","totalenergies_ci","total_cote"],
+    "TTLS": ["ttls","totalenergies_senegal","total_senegal"],
+    "UNLC": ["unilever_ci","unilever_cote"],
+    "UNXC": ["unxc","unix"],
+}
+
+def fetch_rapport_list(year=None):
+    """Scrape la liste des rapports annuels depuis brvm.org/fr/rapports-societe-cotes/0"""
+    if year is None:
+        from datetime import datetime
+        year = datetime.now().year - 1  # Exercice N-1
+    
+    urls_to_try = [
+        f"https://www.brvm.org/fr/rapports-societe-cotes/0",
+        f"https://www.brvm.org/fr/type-document/rapports-annuels",
+        f"https://www.brvm.org/fr/rapports-0",
+    ]
+    
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "fr-FR,fr;q=0.9",
+        "Referer": "https://www.brvm.org/fr/",
+    }
+    
+    pdf_entries = []  # [{ticker, url, year, date_pub}]
+    
+    for url in urls_to_try:
+        try:
+            r = requests.get(url, headers=headers, timeout=20, verify=False)
+            if r.status_code != 200 or len(r.text) < 100:
+                continue
+            
+            # Chercher les liens PDF et les noms de fichiers
+            # Pattern: href="/sites/default/files/YYYYMMDD_-_rapport_..._YYYY_-_nom.pdf"
+            pdf_pat = re.compile(
+                r'href="(/sites/default/files/(\d{8})_-_(rapport[^"]*?|etats_financiers[^"]*?)(\d{4})[^"]*?\.pdf)"',
+                re.IGNORECASE
+            )
+            for m in pdf_pat.finditer(r.text):
+                path      = m.group(1)
+                date_pub  = m.group(2)
+                year_doc  = int(m.group(4))
+                fname_lower = path.lower()
+                if any(x in fname_lower for x in ["semestriel","semestre","semi_annuel","s1_","s2_"]):
+                    period_type = "semi-annual"
+                else:
+                    period_type = "annual"
+                full_url  = "https://www.brvm.org" + path
+                filename  = path.split("/")[-1].lower()
+                
+                # Identifier le ticker
+                ticker = None
+                for t, kws in TICKER_PDF_KEYWORDS.items():
+                    if any(kw in filename for kw in kws):
+                        ticker = t
+                        break
+                
+                if ticker and year_doc >= year - 2:
+                    pdf_entries.append({
+                        "ticker": ticker,
+                        "url": full_url,
+                        "fiscal_year": str(year_doc),
+                        "date_pub": date_pub,
+                        "period_type": period_type,
+                    })
+            
+            if pdf_entries:
+                break  # On a ce qu'il faut
+        except Exception as e:
+            print(f"  fetch_rapport_list err: {e}")
+            continue
+    
+    return pdf_entries
+
+
+def extract_financials_from_pdf(pdf_bytes, ticker):
+    """
+    Extrait les donnÃÂ©es financiÃÂ¨res d'un rapport annuel PDF BRVM.
+    Retourne un dict avec ca, rn, cap_propres, bpa, dividende etc.
+    """
+    data = {}
+    
+    try:
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            full_text = ""
+            for page in pdf.pages[:60]:  # Max 60 pages
+                text = page.extract_text() or ""
+                full_text += text + "\n"
+            
+            # Ã¢ÂÂÃ¢ÂÂ Patterns de recherche (SYSCOHADA / comptes BRVM) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+            patterns = {
+                # Chiffre d'affaires
+                "ca": [
+                    r"chiffre\s+d.affaires\s+net[^\d]*?([\d\s]+(?:,\d+)?)\s*(?:FCFA|F CFA|millions?)?",
+                    r"produits\s+d.exploitation[^\d]*?([\d\s]+(?:,\d+)?)",
+                    r"revenus?\s+nets?[^\d]*?([\d\s]+(?:,\d+)?)",
+                ],
+                # RÃÂ©sultat net
+                "rn": [
+                    r"r[eÃÂ©]sultat\s+net\s*(?:de\s+l.exercice)?[^\d]*?([+-]?[\d\s]+(?:,\d+)?)\s*(?:FCFA|F CFA|millions?)?",
+                    r"b[eÃÂ©]n[eÃÂ©]fice\s+net[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"perte\s+nette[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                ],
+                # Capitaux propres
+                "cap_propres": [
+                    r"capitaux\s+propres[^\d]*?([\d\s]+(?:,\d+)?)",
+                    r"fonds\s+propres[^\d]*?([\d\s]+(?:,\d+)?)",
+                    r"situation\s+nette[^\d]*?([\d\s]+(?:,\d+)?)",
+                ],
+                # Total bilan / Actif total
+                "actif_total": [
+                    r"total\s+(?:du\s+)?bilan[^\d]*?([\d\s]+(?:,\d+)?)",
+                    r"total\s+actif[^\d]*?([\d\s]+(?:,\d+)?)",
+                    r"total\s+g[eÃÂ©]n[eÃÂ©]ral[^\d]*?([\d\s]+(?:,\d+)?)",
+                ],
+                # RÃÂ©sultat d'exploitation / EBIT
+                "res_exp": [
+                    r"r[eÃÂ©]sultat\s+(?:d.exploitation|opÃÂ©rationnel)[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"ebit[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                ],
+                # Dividende
+                "dividende": [
+                    r"dividende[s]?\s+(?:par\s+action)?[^\d]*?([\d\s]+(?:,\d+)?)\s*(?:FCFA|F CFA)?",
+                    r"distribution[^\d]*?([\d\s]+(?:,\d+)?)\s*(?:FCFA|F CFA)?\s*(?:par\s+action)?",
+                ],
+                # BPA
+                "bpa": [
+                    r"b[eÃÂ©]n[eÃÂ©]fice\s+(?:net\s+)?par\s+action[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"bpa[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                    r"r[eÃÂ©]sultat\s+(?:net\s+)?par\s+action[^\d]*?([+-]?[\d\s]+(?:,\d+)?)",
+                ],
+                # Nombre de titres
+                "nb_titres": [
+                    r"(?:nombre\s+de\s+)?(?:titres|actions)\s+(?:en\s+circulation|composant)[^\d]*?([\d\s]+)",
+                    r"capital\s+divis[eÃÂ©]\s+en\s+([\d\s]+)\s+actions",
+                ],
+            }
+            
+            def clean_num(s):
+                """Nettoie un nombre extrait du PDF: '1 234 567,00' Ã¢ÂÂ 1234567.0"""
+                s = re.sub(r'\s+', '', s.strip())
+                s = s.replace(',', '.')
+                try:
+                    return float(s)
+                except:
+                    return None
+            
+            for field, pats in patterns.items():
+                for pat in pats:
+                    m = re.search(pat, full_text, re.IGNORECASE | re.MULTILINE)
+                    if m:
+                        val = clean_num(m.group(1))
+                        if val is not None and val > 0:
+                            # DÃÂ©tecter l'unitÃÂ© Ã¢ÂÂ "en millions" ou "en milliers"
+                            # (les comptes BRVM sont souvent en millions FCFA)
+                            data[field] = val
+                            break
+            
+            # DÃÂ©tecter l'unitÃÂ© globale du document
+            if "millions" in full_text.lower() or "en millions" in full_text.lower():
+                # DÃÂ©jÃÂ  en millions Ã¢ÂÂ OK
+                pass
+            elif "milliers" in full_text.lower() or "en milliers" in full_text.lower():
+                # En milliers Ã¢ÂÂ diviser par 1000 pour avoir des millions
+                for k in ["ca","rn","cap_propres","actif_total","res_exp","ebitda"]:
+                    if k in data:
+                        data[k] = data[k] / 1000
+    
+    except Exception as e:
+        print(f"  extract_financials err ({ticker}): {e}")
+    
+    return data
+
+
+def compute_ratios(data, cours, nb_titres_brvm=None):
+    """Calcule les ratios ÃÂ  partir des donnÃÂ©es extraites du PDF et du cours BRVM."""
+    r = {}
+    
+    ca    = data.get("ca")
+    rn    = data.get("rn")
+    cp    = data.get("cap_propres")
+    total = data.get("actif_total")
+    nb    = data.get("nb_titres") or nb_titres_brvm
+    
+    if rn is not None and cp and cp > 0:
+        r["roe"] = round(rn / cp * 100, 2)
+    if rn is not None and total and total > 0:
+        r["roa"] = round(rn / total * 100, 2)
+    if ca and ca > 0:
+        if rn is not None:
+            r["marge_nette"] = round(rn / ca * 100, 2)
+        if data.get("res_exp") is not None:
+            r["marge_op"] = round(data["res_exp"] / ca * 100, 2)
+    if nb and nb > 0:
+        if rn is not None:
+            r["bpa"] = round((rn * 1e6) / nb, 2)  # rn en M FCFA Ã¢ÂÂ FCFA par action
+    
+    return r
+
+
+def scrape_rapports_annuels():
+    """
+    Fonction principale : scrape les rapports annuels BRVM et 
+    met ÃÂ  jour brvm_financials + brvm_fundamentals.
+    """
+    from datetime import datetime
+    current_year = datetime.now().year
+    target_year  = current_year - 1  # Exercice N-1
+    
+    print(f"\n[RAPPORTS] Scraping rapports annuels exercice {target_year}...")
+    
+    # 1. RÃÂ©cupÃÂ©rer la liste des PDFs disponibles
+    pdf_entries = fetch_rapport_list(target_year)
+    if not pdf_entries:
+        print("  Aucun rapport trouvÃÂ© Ã¢ÂÂ vÃÂ©rifier l'accÃÂ¨s ÃÂ  brvm.org")
+        return
+    
+    print(f"  {len(pdf_entries)} rapports trouvÃÂ©s")
+    
+    headers = {"User-Agent": USER_AGENT, "Referer": "https://www.brvm.org/fr/"}
+    now     = datetime.now(timezone.utc).isoformat()
+    ok_count = 0
+    
+    for entry in pdf_entries:
+        ticker      = entry["ticker"]
+        url         = entry["url"]
+        fiscal_year = entry["fiscal_year"]
+        period_type = entry.get("period_type", "annual")
+        
+        # VÃÂ©rifier si dÃÂ©jÃÂ  parsÃÂ© rÃÂ©cemment
+        check_url = f"{SUPABASE_URL}/rest/v1/brvm_financials?ticker=eq.{ticker}&fiscal_year=eq.{fiscal_year}&select=parsed_at"
+        check_r   = requests.get(check_url, headers=HEADERS_SB, timeout=10)
+        if check_r.ok:
+            existing = check_r.json()
+            if existing and existing[0].get("parsed_at"):
+                print(f"  {ticker} {fiscal_year} Ã¢ÂÂ dÃÂ©jÃÂ  parsÃÂ©, skip")
+                continue
+        
+        print(f"  TÃÂ©lÃÂ©chargement {ticker} {fiscal_year}...")
+        try:
+            pdf_r = requests.get(url, headers=headers, timeout=60, verify=False)
+            if pdf_r.status_code != 200:
+                print(f"    Ã¢ÂÂ HTTP {pdf_r.status_code}")
+                continue
+            
+            pdf_bytes = pdf_r.content
+            if not pdf_bytes[:4] == b"%PDF":
+                print(f"    Ã¢ÂÂ Pas un PDF valide")
+                continue
+            
+            # Extraire les donnÃÂ©es
+            fin_data = extract_financials_from_pdf(pdf_bytes, ticker)
+            if not fin_data:
+                print(f"    Ã¢ÂÂ Aucune donnÃÂ©e extraite")
+                continue
+            
+            # Calculer les ratios
+            ticker_meta = requests.get(
+                f"{SUPABASE_URL}/rest/v1/brvm_meta?ticker=eq.{ticker}&select=last_close",
+                headers=HEADERS_SB, timeout=10
+            ).json()
+            cours = ticker_meta[0].get("last_close") if ticker_meta else None
+            
+            ratios   = compute_ratios(fin_data, cours)
+            row_data = {**fin_data, **ratios,
+                        "ticker": ticker, "fiscal_year": fiscal_year,
+                        "period_type": period_type,
+                        "source_url": url,
+                        "source_type": "pdf_annuel", "parsed_at": now}
+            
+            # Upsert dans brvm_financials
+            upsert_url = f"{SUPABASE_URL}/rest/v1/brvm_financials"
+            r = requests.post(upsert_url,
+                headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
+                json=row_data, timeout=15)
+            
+            if r.status_code in (200, 201):
+                print(f"    Ã¢ÂÂ {ticker} {fiscal_year}: CA={fin_data.get('ca','?')}M, RN={fin_data.get('rn','?')}M")
+                ok_count += 1
+                
+                # Mettre ÃÂ  jour brvm_fundamentals avec les donnÃÂ©es les plus rÃÂ©centes
+                if period_type == "annual":
+                    fund_update = {k: v for k, v in {**fin_data, **ratios}.items()
+                                   if k in ["ca","rn","ebitda","cap_propres","bpa","dividende",
+                                            "roe","roa","marge_nette","marge_op","debt_equity"]}
+                    fund_update["fiscal_year"] = fiscal_year
+                    requests.patch(
+                        f"{SUPABASE_URL}/rest/v1/brvm_fundamentals?ticker=eq.{ticker}",
+                        headers=HEADERS_SB, json=fund_update, timeout=10)
+                else:
+                    print(f"    semestriel {ticker} {fiscal_year} — financials seulement")
+            else:
+                print(f"    Ã¢ÂÂ Supabase {r.status_code}: {r.text[:100]}")
+        
+        except Exception as e:
+            print(f"    Ã¢ÂÂ Erreur {ticker}: {e}")
+    
+    print(f"\n[RAPPORTS] {ok_count}/{len(pdf_entries)} rapports traitÃÂ©s")
+
+
+
+
+def install_deps():
+    """Installer pdfplumber si absent."""
+    try:
+        import pdfplumber
+    except ImportError:
+        import subprocess
+        subprocess.run(["pip", "install", "pdfplumber", "--quiet"], check=True)
     try:
         existing = requests.get(
             SUPABASE_URL + "/rest/v1/brvm_fundamentals?select=ticker",
