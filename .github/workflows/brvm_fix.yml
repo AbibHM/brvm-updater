@@ -4,58 +4,41 @@ on:
 jobs:
   fix:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+
       - name: Clean brvm_update.py
+        shell: python
         run: |
-          python3 - << 'PYEOF'
-import sys
+          lines = open('brvm_update.py', encoding='utf-8').readlines()
+          print(f'Original: {len(lines)} lines')
+          part1 = lines[0:718]
+          part2 = lines[719:1072]
+          install = [
+              '\n', '\n',
+              'def install_deps():\n',
+              '    \"\"\"Installer pdfplumber si absent.\"\"\"\n',
+              '    try:\n',
+              '        import pdfplumber\n',
+              '    except ImportError:\n',
+              '        import subprocess\n',
+              '        subprocess.run(["pip", "install", "pdfplumber", "--quiet"], check=True)\n',
+              '\n',
+          ]
+          idx = next(i for i, l in enumerate(part1) if l.strip() == 'def main():')
+          final = part1[:idx] + install + part1[idx:] + ['\n'] + part2
+          open('brvm_update.py', 'w', encoding='utf-8').writelines(final)
+          c = open('brvm_update.py').read()
+          assert c.count('\ndef main():') == 1
+          assert c.count('\ndef install_deps():') == 1
+          assert c.count('if __name__') == 1
+          print(f'Fixed: {len(final)} lines - OK')
 
-with open('brvm_update.py', 'r', encoding='utf-8') as f:
-    lines = f.readlines()
-
-print(f"Original: {len(lines)} lines")
-
-# Keep lines 1-718 (index 0-717) + lines 720-1072 (index 719-1071)
-# Add clean install_deps before main()
-part1 = lines[0:718]
-part2 = lines[719:1072]
-
-install_deps = [
-    '\n',
-    '\n',
-    'def install_deps():\n',
-    '    """Installer pdfplumber si absent."""\n',
-    '    try:\n',
-    '        import pdfplumber\n',
-    '    except ImportError:\n',
-    '        import subprocess\n',
-    '        subprocess.run(["pip", "install", "pdfplumber", "--quiet"], check=True)\n',
-    '\n',
-]
-
-# Insert install_deps before def main():
-main_idx = next(i for i, l in enumerate(part1) if l.strip() == 'def main():')
-part1_fixed = part1[:main_idx] + install_deps + part1[main_idx:]
-
-final_lines = part1_fixed + ['\n'] + part2
-
-with open('brvm_update.py', 'w', encoding='utf-8') as f:
-    f.writelines(final_lines)
-
-print(f"Fixed: {len(final_lines)} lines")
-
-# Verify
-content = open('brvm_update.py').read()
-assert content.count('\ndef main():') == 1, "Should have exactly 1 main()"
-assert content.count('\ndef install_deps():') == 1, "Should have exactly 1 install_deps"
-assert content.count('if __name__') == 1, "Should have exactly 1 if __name__"
-print("Verification OK")
-PYEOF
       - name: Commit
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           git add brvm_update.py
-          git commit -m "fix: nettoyer brvm_update.py - supprimer doublons"
-          git push
+          git diff --cached --quiet || git commit -m "fix: nettoyer brvm_update.py - supprimer doublons"
