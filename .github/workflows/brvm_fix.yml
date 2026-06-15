@@ -8,6 +8,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Clean brvm_update.py
         shell: python
@@ -36,10 +38,10 @@ jobs:
           assert c.count('if __name__') == 1
           print(f'Fixed: {len(final)} lines - OK')
 
-      - name: Commit
+      - name: Commit and push
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
-          git status
-          git commit -a -m "fix: nettoyer brvm_update.py - supprimer doublons" || echo "Nothing to commit"
-          git status           git commit -a -m "fix: nettoyer brvm_update.py - supprimer doublons" || echo "Nothing to commit"           git push || echo "Nothing to push"
+          git add brvm_update.py
+          git commit -m "fix: nettoyer brvm_update.py - supprimer doublons"
+          git push
