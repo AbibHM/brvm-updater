@@ -40,5 +40,6 @@ jobs:
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
-          git add brvm_update.py
-          git diff --cached --quiet || git commit -m "fix: nettoyer brvm_update.py - supprimer doublons"
+          git status
+          git commit -a -m "fix: nettoyer brvm_update.py - supprimer doublons" || echo "Nothing to commit"
+          git status           git commit -a -m "fix: nettoyer brvm_update.py - supprimer doublons" || echo "Nothing to commit"           git push || echo "Nothing to push"
