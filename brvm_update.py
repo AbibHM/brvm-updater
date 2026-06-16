@@ -724,8 +724,6 @@ def main():
     sys.exit(0 if inserted > 0 else 1)
 
 
-if __name__ == "__main__":
-    main()
 
 
 # ============================================================
@@ -1078,5 +1076,5 @@ def scrape_rapports_annuels():
     print(f"\n[RAPPORTS] {ok_count}/{len(pdf_entries)} rapports traitÃÂ©s")
 
 
-
-
+if __name__ == "__main__":
+    main()
