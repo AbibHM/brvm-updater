@@ -4,7 +4,7 @@
 BRVM Daily Updater
 Source : Bulletin Officiel de la Cote (BOC) PDF - brvm.org
 Fallback: scraping HTML brvm.org/fr/cours-actions/0
-"""
+"""h
 import os
 import re
 import sys
@@ -621,13 +621,8 @@ def scrape_from_html():
         if len(tds) < 2: continue
         ticker = tds[0].upper().strip()
         if ticker not in TICKERS_KNOWN: continue
-        int_vals = [to_int(t) for t in tds]
-        volume = 0
-        for i in range(2, len(tds)):
-            v = int_vals[i]
-            if v is not None and v >= 0:
-                volume = v
-                break
+        volume = to_int(tds[2]) if len(tds) > 2 else 0
+        if volume is None: volume = 0
         price_nums = [to_float(tds[i]) for i in range(2, len(tds))
                       if to_float(tds[i]) is not None and to_float(tds[i]) > 100]
         if not price_nums: continue
