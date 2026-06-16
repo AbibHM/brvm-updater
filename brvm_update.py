@@ -631,12 +631,16 @@ def scrape_from_html():
         price_nums = [to_float(tds[i]) for i in range(2, len(tds))
                       if to_float(tds[i]) is not None and to_float(tds[i]) > 100]
         if not price_nums: continue
-        # Structure colonnes: Symbole|Nom|Volume|Cours_veille|Cours_ouverture|Cours_cloture|Variation
+        # Colonnes: Symbole|Nom|Volume|Cours_veille|Cours_ouverture|Cours_cloture|Variation
+        # cours_veille = dernier cours officiel confirme (reference fiable)
+        # cours_cloture = cours du jour, = cours_veille si seance pas terminee
         cours_veille    = to_float(tds[3]) if len(tds) > 3 else None
         cours_ouverture = to_float(tds[4]) if len(tds) > 4 else None
         cours_cloture   = to_float(tds[5]) if len(tds) > 5 else None
-        open_  = cours_ouverture if cours_ouverture and cours_ouverture > 0 else (cours_veille or price_nums[0])
-        close  = cours_cloture   if cours_cloture   and cours_cloture   > 0 else (cours_ouverture or price_nums[-1])
+        # close = cours_veille (fiable), sauf si seance terminee et cloture differente
+        seance_terminee = (cours_cloture and cours_cloture > 0 and cours_cloture != cours_veille)
+        open_  = cours_ouverture if cours_ouverture and cours_ouverture > 0 else cours_veille
+        close  = cours_cloture if seance_terminee else cours_veille
         high = close; low = close
         rows.append({"ticker": ticker, "date": TODAY, "open": open_, "high": high, "low": low, "close": close, "volume": volume})
     print(f"  HTML scrape: {len(rows)} tickers")
