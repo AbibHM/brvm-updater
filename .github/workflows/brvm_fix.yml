@@ -11,37 +11,32 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean brvm_update.py
+      - name: Move if __name__ to end of file
         shell: python
         run: |
-          lines = open('brvm_update.py', encoding='utf-8').readlines()
-          print(f'Original: {len(lines)} lines')
-          part1 = lines[0:718]
-          part2 = lines[719:1072]
-          install = [
-              '\n', '\n',
-              'def install_deps():\n',
-              '    \"\"\"Installer pdfplumber si absent.\"\"\"\n',
-              '    try:\n',
-              '        import pdfplumber\n',
-              '    except ImportError:\n',
-              '        import subprocess\n',
-              '        subprocess.run(["pip", "install", "pdfplumber", "--quiet"], check=True)\n',
-              '\n',
-          ]
-          idx = next(i for i, l in enumerate(part1) if l.strip() == 'def main():')
-          final = part1[:idx] + install + part1[idx:] + ['\n'] + part2
-          open('brvm_update.py', 'w', encoding='utf-8').writelines(final)
-          c = open('brvm_update.py').read()
-          assert c.count('\ndef main():') == 1
-          assert c.count('\ndef install_deps():') == 1
-          assert c.count('if __name__') == 1
-          print(f'Fixed: {len(final)} lines - OK')
+          content = open('brvm_update.py', encoding='utf-8').read()
+          # Remove the if __name__ block from its current position (line 727)
+          IF_BLOCK = '\nif __name__ == "__main__":\n    main()\n'
+          count = content.count(IF_BLOCK)
+          print(f'Found {count} occurrence(s) of if __name__ block')
+          # Remove all occurrences
+          clean = content.replace(IF_BLOCK, '\n')
+          # Add it at the very end
+          clean = clean.rstrip() + '\n\n\nif __name__ == "__main__":\n    main()\n'
+          open('brvm_update.py', 'w', encoding='utf-8').write(clean)
+          # Verify
+          result = open('brvm_update.py').read()
+          lines = result.split('\n')
+          last_if = max(i for i, l in enumerate(lines) if 'if __name__' in l)
+          last_def = max(i for i, l in enumerate(lines) if l.startswith('def '))
+          print(f'Lines: {len(lines)} | last def: {last_def+1} | last if __name__: {last_if+1}')
+          assert last_if > last_def, f'if __name__ ({last_if+1}) must be after last def ({last_def+1})'
+          print('OK - if __name__ is after all functions')
 
       - name: Commit and push
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           git add brvm_update.py
-          git commit -m "fix: nettoyer brvm_update.py - supprimer doublons"
+          git commit -m "fix: deplacer if __name__ apres toutes les fonctions"
           git push
